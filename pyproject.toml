@@ -1,0 +1,11 @@
+[project]
+name = 'room_control'
+version = "1.0.0"
+description = "Various utilities for a single room controlling app"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    'pvlib'
+]
+
+[tool.setuptools.packages.find]
