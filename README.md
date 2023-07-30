@@ -40,19 +40,17 @@ Activates the room if the door opens when everything in the room is off.
 
 [input_boolean]: https://www.home-assistant.io/integrations/input_boolean/
 
-"Example state for `scene` key"
+Example state for `scene` key
 
     ```yaml
     - time: 22:00:00
-      off_duration: 00:02:00 # (1)
+      off_duration: 00:02:00
       scene:
         light.kitchen:
           state: on
           color_temp: 650
           brightness_pct: 10
     ```
-
-    1. (Optional) overrides the default `off_duration` for this period only
 
 #### Optional
 
@@ -62,9 +60,9 @@ Activates the room if the door opens when everything in the room is off.
 | `button`       | ID of the button to control the room                                                    |
 | `door`         | `binary_sensor` (door) sensor for the room                                              |
 
-??? example "Sample Button Event Data"
+Sample Button Event Data
 
-    ```yaml hl_lines="3"
+    ```yaml
     event_type: deconz_event
     data:
       id: living_room
