@@ -2,11 +2,15 @@
 
 ```mermaid
 graph TD
-    Motion --> Activate
-    Button --> Activate
-    Door --> Activate
+    state_check{Is anything on?}
+    state_check -- no --> Activate
+    state_check -- yes --> Ignore
+
+    Motion -- "Motion sensed" --> state_check
+    Door -- "Gets opened" --> state_check
+    Button -- "Single press" --> state_check
     Activate -- "Wait for no motion" --> Deactivate
-    Button --> Deactivate
+    state_check -- "yes (button only)" --> Deactivate
 ```
 
 ### Behaviors
