@@ -79,20 +79,17 @@ context:
 
 ## Running with Docker
 
-Needs to have a `requirements.txt` file in the same directory as the `Dockerfile`
+Clone repo into `apps/room_control` of your appdaemon config folder.
 
-```dockerfile
-FROM python:3.10
-
-# install order matters because of some weird dependency stuff with websocket-client
-# install appdaemon first because it's versioning is more restrictive
-RUN pip install git+https://github.com/AppDaemon/appdaemon@dev
-
-ENV CONF=/conf
-RUN mkdir $CONF
-COPY ./requirements.txt ${CONF}
-RUN --mount=type=cache,target=/root/.cache/pip pip install -r ${CONF}/requirements.txt
+```shell
+./appdaemon_config
+├── apps
+│   ├── room_control
+│   └── rooms
+└── docker-compose.yml
 ```
+
+Example `docker-compose.yml`:
 
 ```yaml
 version: "3.8"
@@ -107,7 +104,6 @@ services:
     ports:
       - 5050:5050
     restart: unless-stopped
-
 
 volumes:
   config:
