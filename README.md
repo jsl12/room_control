@@ -79,7 +79,11 @@ context:
 
 ## Running with Docker
 
-Clone repo into `apps/room_control` of your appdaemon config folder.
+Use this command from the appdaemon config directory to clone this repo as a submodule (recommended):
+
+```
+git submodule add -b main https://github.com/jsl12/room_control ./apps/room_control
+```
 
 ```shell
 ./appdaemon_config
