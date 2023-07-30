@@ -42,15 +42,15 @@ Activates the room if the door opens when everything in the room is off.
 
 Example state for `scene` key
 
-    ```yaml
-    - time: 22:00:00
-      off_duration: 00:02:00
-      scene:
-        light.kitchen:
-          state: on
-          color_temp: 650
-          brightness_pct: 10
-    ```
+```yaml
+- time: 22:00:00
+  off_duration: 00:02:00
+  scene:
+    light.kitchen:
+      state: on
+      color_temp: 650
+      brightness_pct: 10
+```
 
 #### Optional
 
@@ -62,20 +62,20 @@ Example state for `scene` key
 
 Sample Button Event Data
 
-    ```yaml
-    event_type: deconz_event
-    data:
-      id: living_room
-      unique_id: 00:15:8d:00:06:ba:29:70
-      event: 1002
-      device_id: fc0ad75dfb8d3a55abfe842199cc94e9
-    origin: LOCAL
-    time_fired: "2023-04-26T05:40:39.762306+00:00"
-    context:
-      id: 01GYY17ZPJVP57C8PN1K3R4D7J
-      parent_id: null
-      user_id: null
-    ```
+```yaml
+event_type: deconz_event
+data:
+  id: living_room
+  unique_id: 00:15:8d:00:06:ba:29:70
+  event: 1002
+  device_id: fc0ad75dfb8d3a55abfe842199cc94e9
+origin: LOCAL
+time_fired: "2023-04-26T05:40:39.762306+00:00"
+context:
+  id: 01GYY17ZPJVP57C8PN1K3R4D7J
+  parent_id: null
+  user_id: null
+```
 
 ## Running with Docker
 
