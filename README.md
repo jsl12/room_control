@@ -23,47 +23,7 @@ graph TD
 | Long-press   |                                             |
 | Double-press | Toggle sleep mode, then activate room       |
 
-#### Door
-
-Activates the room if the door opens when everything in the room is off.
-
-### Config
-
-#### Required
-
-| Key      | Behavior                                     |
-|----------|----------------------------------------------|
-| `entity` | Main entity for the room                     |
-| `sensor` | `binary_sensor` (motion) sensor for the room |
-| `states`  | List of states and times for the room.       |
-
-
-#### Optional
-
-| Key            | Behavior                                                                                |
-|----------------|-----------------------------------------------------------------------------------------|
-| `off_duration` | Default time for the motion sensor to be clear before deactivating the room. `HH:MM:SS` |
-| `button`       | ID of the button to control the room                                                    |
-| `door`         | `binary_sensor` (door) sensor for the room                                              |
-| `sleep`        | [input_boolean] of the sleep mode variable                                              |
-
-[input_boolean]: https://www.home-assistant.io/integrations/input_boolean/
-
-### Scene Definition
-
-Example state for `states` key
-
-```yaml
-- time: 22:00:00
-  off_duration: 00:02:00
-  scene:
-    light.kitchen:
-      state: on
-      color_temp: 650
-      brightness_pct: 10
-```
-
-Sample Button Event Data
+Sample button event data:
 
 ```yaml
 event_type: deconz_event
@@ -80,6 +40,53 @@ context:
   user_id: null
 ```
 
+#### Door
+
+Activates the room if the door opens when everything in the room is off.
+
+### Config
+
+#### Required
+
+| Key      | Behavior                                     |
+|----------|----------------------------------------------|
+| `entity` | Main entity for the room                     |
+| `sensor` | `binary_sensor` (motion) sensor for the room |
+| `states`  | List of states and times for the room.      |
+
+#### Optional
+
+| Key            | Behavior                                                                                |
+|----------------|-----------------------------------------------------------------------------------------|
+| `off_duration` | Default time for the motion sensor to be clear before deactivating the room. `HH:MM:SS` |
+| `button`       | ID of the button to control the room                                                    |
+| `door`         | `binary_sensor` (door) sensor for the room                                              |
+| `sleep`        | [input_boolean] of the sleep mode variable                                              |
+
+[input_boolean]: https://www.home-assistant.io/integrations/input_boolean/
+
+### State Definition
+
+Example state for `states` key
+
+```yaml
+- time: 22:00:00
+  off_duration: 00:02:00
+  scene:
+    light.kitchen:
+      state: on
+      color_temp: 650
+      brightness_pct: 10
+```
+
+States can be defined 3 ways:
+- Using the `time` key (parsed with [`appdaemon.adapi.ADAPI.parse_time`])
+    - `HH:MM:SS[.ss]` - the time in Hours Minutes, Seconds and Microseconds, 24 hour format.
+    - `sunrise|sunset [+|- HH:MM:SS[.ss]]` - time of the next sunrise or sunset with an optional positive or negative offset in Hours Minutes, Seconds and Microseconds.
+- Using the `elevation` key
+
+[`appdaemon.adapi.ADAPI.parse_time`]: https://appdaemon.readthedocs.io/en/latest/AD_API_REFERENCE.html#appdaemon.adapi.ADAPI.parse_time
+
 ## Running with Docker
 
 Use this command from the appdaemon config directory to clone this repo as a submodule (recommended):
@@ -93,7 +100,8 @@ git submodule add -b main https://github.com/jsl12/room_control ./apps/room_cont
 ├── apps
 │   ├── room_control
 │   └── rooms
-└── docker-compose.yml
+├── docker-compose.yml
+└── secrets.yaml
 ```
 
 Example `docker-compose.yml`:
@@ -119,4 +127,10 @@ volumes:
       o: bind
       type: none
       device: ./
+```
+
+Example `secrets.yaml`. Token from [profile in Home Assistant](http://homeassistant:8123/profile)
+
+```yaml
+long_lived_token: <TOKEN>
 ```
