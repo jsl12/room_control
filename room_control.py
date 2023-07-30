@@ -1,10 +1,9 @@
 from copy import deepcopy
 from datetime import time, timedelta
-from typing import Dict, List, Tuple, Union
+from typing import List
 
 import astral
 from appdaemon.plugins.hass.hassapi import Hass
-from continuous import Continuous
 
 
 class RoomController(Hass):
