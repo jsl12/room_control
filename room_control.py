@@ -115,7 +115,7 @@ class RoomController(Hass):
 
     def parse_states(self):
         def gen():
-            for state in deepcopy(self.args['scene']):
+            for state in deepcopy(self.args['states']):
                 if (time := state.get('time')):
                     state['time'] = self.parse_time(time)
 
@@ -160,7 +160,7 @@ class RoomController(Hass):
         """Returns a list of all the entities involved in any of the states
         """
         def gen():
-            for settings in deepcopy(self.args['scene']):
+            for settings in deepcopy(self.args['states']):
                 # dt = self.parse_time(settings.pop('time'))
                 if (scene := settings.get('scene')):
                     if isinstance(scene, str):

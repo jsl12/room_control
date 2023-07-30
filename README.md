@@ -35,12 +35,23 @@ Activates the room if the door opens when everything in the room is off.
 |----------|----------------------------------------------|
 | `entity` | Main entity for the room                     |
 | `sensor` | `binary_sensor` (motion) sensor for the room |
-| `scene`  | List of states and times for the room.       |
-| `sleep`  | [input_boolean] of the sleep mode variable   |
+| `states`  | List of states and times for the room.       |
+
+
+#### Optional
+
+| Key            | Behavior                                                                                |
+|----------------|-----------------------------------------------------------------------------------------|
+| `off_duration` | Default time for the motion sensor to be clear before deactivating the room. `HH:MM:SS` |
+| `button`       | ID of the button to control the room                                                    |
+| `door`         | `binary_sensor` (door) sensor for the room                                              |
+| `sleep`        | [input_boolean] of the sleep mode variable                                              |
 
 [input_boolean]: https://www.home-assistant.io/integrations/input_boolean/
 
-Example state for `scene` key
+### Scene Definition
+
+Example state for `states` key
 
 ```yaml
 - time: 22:00:00
@@ -51,14 +62,6 @@ Example state for `scene` key
       color_temp: 650
       brightness_pct: 10
 ```
-
-#### Optional
-
-| Key            | Behavior                                                                                |
-|----------------|-----------------------------------------------------------------------------------------|
-| `off_duration` | Default time for the motion sensor to be clear before deactivating the room. `HH:MM:SS` |
-| `button`       | ID of the button to control the room                                                    |
-| `door`         | `binary_sensor` (door) sensor for the room                                              |
 
 Sample Button Event Data
 
