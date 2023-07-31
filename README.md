@@ -110,11 +110,16 @@ Use this command from the appdaemon config directory to clone this repo as a sub
 git submodule add -b main https://github.com/jsl12/room_control ./apps/room_control
 ```
 
+```
+git submodule update --remote
+```
+
 ```shell
 ./appdaemon_config
 ├── apps
 │   ├── room_control
 │   └── rooms
+├── appdaemon.yaml
 ├── docker-compose.yml
 └── secrets.yaml
 ```
@@ -132,7 +137,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - config:/conf
     ports:
-      - 5050:5050
+      - 5050:5000
     restart: unless-stopped
 
 volumes:

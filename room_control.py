@@ -1,5 +1,6 @@
 from copy import deepcopy
 from datetime import time, timedelta
+from gc import callbacks
 from typing import List
 
 import astral
@@ -17,12 +18,18 @@ class RoomController(Hass):
     """
 
     def initialize(self):
-        self.state_change_handle = self.listen_state(self.handle_state_change, self.entity)
+        self.app_entities = self.gather_app_entities()
+        
         self.refresh_state_times()
-        self.sync_state()
         self.run_daily(callback=self.refresh_state_times, start='00:00:00')
 
-        self.app_entities = self.gather_app_entities()
+        # sets up motion callbacks
+        self.state_change_handle = self.listen_state(self.handle_state_change, self.entity)
+        self.sync_state()
+
+        if (ha_button := self.args.get('ha_button')):
+            self.log(f'Setting up input button: {self.friendly_name(ha_button)}')
+            self.listen_state(callback=self.activate_any_on, entity_id=ha_button)
 
         if (button := self.args.get('button')):
             if not isinstance(button, list):
@@ -303,11 +310,11 @@ class RoomController(Hass):
         else:
             self.log(f'Skipped activating - everything is not off')
 
-    def activate_any_on(self, kwargs):
+    def activate_any_on(self, *args, **kwargs):
         if self.any_on:
             self.activate()
         else:
-            self.log(f'Skipped activating - everything is not off')
+            self.log(f'Skipped activating - everything is off')
 
     def deactivate(self, *args, **kwargs):
         self.log('Deactivating')
