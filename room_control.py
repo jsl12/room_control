@@ -346,10 +346,7 @@ class RoomController(Hass):
         # event 1002 is a single button press
         if data['event'] == 1002:
             self.log(f'{data["id"]} single click')
-            if self.entity_state:
-                self.deactivate()
-            else:
-                self.activate()
+            self.button_single_click()
 
         # event 1001 is a long press start
         elif data['event'] == 1001:
@@ -362,11 +359,18 @@ class RoomController(Hass):
         # event 1004 is a double click
         elif data['event'] == 1004:
             self.log(f'{data["id"]} double click')
-            if 'sleep' in self.args:
-                self.sleep_bool = not self.sleep_bool
-                # self.cancel_motion_callback(new='off')
-                # self.callback_light_on()
-                self.activate()
+            self.button_double_click()
+
+    def button_single_click(self):
+        if self.entity_state:
+            self.deactivate()
+        else:
+            self.activate()
+
+    def button_double_click(self):
+        if 'sleep' in self.args:
+            self.sleep_bool = not self.sleep_bool
+            self.activate()
 
     def get_app_callbacks(self, name: str = None):
         name = name or self.name
