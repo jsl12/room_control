@@ -20,7 +20,6 @@ graph TD
 | Action       | Response                                    |
 |--------------|---------------------------------------------|
 | Single-press | Toggle the room state (activate/deactivate) |
-| Long-press   |                                             |
 | Double-press | Toggle sleep mode, then activate room       |
 
 Sample button event data:
@@ -52,18 +51,21 @@ Activates the room if the door opens when everything in the room is off.
 |----------|----------------------------------------------|
 | `entity` | Main entity for the room                     |
 | `sensor` | `binary_sensor` (motion) sensor for the room |
-| `states`  | List of states and times for the room.      |
+| `states` | List of states and times for the room.       |
 
 #### Optional
 
 | Key            | Behavior                                                                                |
 |----------------|-----------------------------------------------------------------------------------------|
 | `off_duration` | Default time for the motion sensor to be clear before deactivating the room. `HH:MM:SS` |
-| `button`       | ID of the button to control the room                                                    |
+| `button`       | ID of the button to control the room ([Aqara mini switch])                              |
+| `ha_button`    | entity ID of the Home Assistant [input button]                                          |
 | `door`         | `binary_sensor` (door) sensor for the room                                              |
 | `sleep`        | [input_boolean] of the sleep mode variable                                              |
 
 [input_boolean]: https://www.home-assistant.io/integrations/input_boolean/
+[Aqara mini switch]: https://www.amazon.com/Aqara-WXKG11LM-Switch-Wireless-Remote/dp/B07D19YXND
+[input button]: https://www.home-assistant.io/integrations/input_button/
 
 ### State Definition
 
