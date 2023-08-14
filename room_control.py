@@ -161,7 +161,8 @@ class RoomController(Hass):
                 return self.states[-1]
 
     def current_scene(self, time: time = None):
-        return self.current_state(time=time)['scene']
+        if (state := self.current_state(time=time)) is not None:
+            return state['scene']
 
     def gather_app_entities(self) -> List[str]:
         """Returns a list of all the entities involved in any of the states
