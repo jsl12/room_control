@@ -70,10 +70,11 @@ Activates the room if the door opens when everything in the room is off.
 ### State Definition
 
 States can be defined 3 ways:
-- Using the `time` key (parsed with [`appdaemon.adapi.ADAPI.parse_time`])
+
+- Using the `time` key (parsed with [appdaemon.adapi.ADAPI.parse_time][])
     - `HH:MM:SS[.ss]` - the time in Hours Minutes, Seconds and Microseconds, 24 hour format.
     - `sunrise|sunset [+|- HH:MM:SS[.ss]]` - time of the next sunrise or sunset with an optional positive or negative offset in Hours Minutes, Seconds and Microseconds.
-- Using the `elevation` key (uses [`astral.sun.time_at_elevation`])
+- Using the `elevation` key (uses [astral.sun.time_at_elevation][])
   - Requires an additional `direction` key with wither `rising` or `setting`
 
 Examples state for `states` key
@@ -100,9 +101,6 @@ Examples state for `states` key
       color_temp: 650
       brightness_pct: 10
 ```
-
-[`appdaemon.adapi.ADAPI.parse_time`]: https://appdaemon.readthedocs.io/en/latest/AD_API_REFERENCE.html#appdaemon.adapi.ADAPI.parse_time
-[`astral.sun.time_at_elevation`]: https://astral.readthedocs.io/en/latest/package.html#astral.sun.time_at_elevation
 
 ## Running with Docker
 
