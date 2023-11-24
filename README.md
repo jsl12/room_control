@@ -75,7 +75,7 @@ States can be defined 3 ways:
     - `HH:MM:SS[.ss]` - the time in Hours Minutes, Seconds and Microseconds, 24 hour format.
     - `sunrise|sunset [+|- HH:MM:SS[.ss]]` - time of the next sunrise or sunset with an optional positive or negative offset in Hours Minutes, Seconds and Microseconds.
 - Using the `elevation` key (uses [astral.sun.time_at_elevation][])
-  - Requires an additional `direction` key with wither `rising` or `setting`
+    - Requires an additional `direction` key with wither `rising` or `setting`
 
 Examples state for `states` key
 
