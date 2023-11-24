@@ -247,7 +247,8 @@ class RoomController(Hass, Mqtt):
             callback=self.activate,
             entity_id=self.sensor,
             new='on',
-            oneshot=True
+            oneshot=True,
+            cause='motion on'
         )
 
     def listen_motion_off(self, duration: timedelta):
@@ -259,7 +260,8 @@ class RoomController(Hass, Mqtt):
             entity_id=self.sensor,
             new='off',
             duration=duration.total_seconds(),
-            oneshot=True
+            oneshot=True,
+            cause='motion off'
         )
 
     def handle_state_change(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
@@ -286,8 +288,8 @@ class RoomController(Hass, Mqtt):
         self.cancel_motion_callback(new='off')
         self.listen_motion_on()
 
-    def activate(self, *args, **kwargs):
-        self.log('Activating')
+    def activate(self, *args, cause: str = 'unknown', **kwargs):
+        self.log(f'Activating: {cause}')
         scene = self.current_scene()
 
         if isinstance(scene, str):
@@ -312,18 +314,18 @@ class RoomController(Hass, Mqtt):
 
     def activate_all_off(self, *args, **kwargs):
         if self.all_off:
-            self.activate()
+            self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
 
     def activate_any_on(self, *args, **kwargs):
         if self.any_on:
-            self.activate()
+            self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is off')
 
-    def deactivate(self, *args, **kwargs):
-        self.log('Deactivating')
+    def deactivate(self, *args, cause: str = 'unknown', **kwargs):
+        self.log(f'Deactivating: {cause}')
         for entity in self.app_entities:
             self.turn_off(entity)
             self.log(f'Turned off {entity}')
@@ -386,15 +388,16 @@ class RoomController(Hass, Mqtt):
 
     def button_single_click(self, name: str):
         self.log(f'button: {name}: single')
+        cause = 'button single click'
         if self.entity_state:
-            self.deactivate()
+            self.deactivate(cause=cause)
         else:
-            self.activate()
+            self.activate(cause=cause)
 
     def button_double_click(self):
         if 'sleep' in self.args:
             self.sleep_bool = not self.sleep_bool
-            self.activate()
+            self.activate(cause='button double click')
 
     def get_app_callbacks(self, name: str = None):
         name = name or self.name
