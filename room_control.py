@@ -1,13 +1,14 @@
 from copy import deepcopy
 from datetime import time, timedelta
 from gc import callbacks
+from telnetlib import KERMIT
 from typing import List
-
+import json
 import astral
 from appdaemon.plugins.hass.hassapi import Hass
+from appdaemon.plugins.mqtt.mqttapi import Mqtt
 
-
-class RoomController(Hass):
+class RoomController(Hass, Mqtt):
     """Class for linking an light with a motion sensor.
 
     - Separate the turning on and turning off functions.
@@ -36,7 +37,11 @@ class RoomController(Hass):
                 button = [button]
             for button in button:
                 self.log(f'Setting up button: {button}')
-                self.listen_event(self.handle_button, event='deconz_event', id=button)
+                self.listen_event(self.handle_button, event='deconz_event', id=button, button=button)
+                topic = f'zigbee2mqtt/{button}'
+                self.mqtt_subscribe(topic, namespace='mqtt')
+                self.listen_event(self.handle_button, "MQTT_MESSAGE", topic=topic, namespace='mqtt', button=button)
+
 
         if (door := self.args.get('door')):
             door_entity = self.get_entity(door)
@@ -344,25 +349,43 @@ class RoomController(Hass):
                 self.log(f'Failed with {type(e)}: {e}')
 
     def handle_button(self, event_name, data, kwargs):
-        # event 1002 is a single button press
-        if data['event'] == 1002:
-            self.log(f'{data["id"]} single click')
-            self.button_single_click()
+        if event_name == 'MQTT_MESSAGE':
+            topic = data['topic']
+            payload = json.loads(data['payload'])
+            try:
+                action = payload['action']
+            except KeyError as e:
+                # self.log(f'No action in: {payload}')
+                return
+            else:
+                if action == 'single':
+                    self.button_single_click(kwargs['button'])
+                elif action != '':
+                    self.log(f'{topic}: {payload}')
+            finally:
+                return
+        elif event_name == 'deconz_event':
+            # event 1002 is a single button press
+            if data['event'] == 1002:
+                self.button_single_click(kwargs['button'])
 
-        # event 1001 is a long press start
-        elif data['event'] == 1001:
-            self.log(f'{data["id"]} long press down')
-            if 'delay' in self.args and self.entity_state:
-                self.cancel_motion_callback(new='off')
-                self.listen_motion_off(self.delay)
-                self.turn_on(self.entity, brightness_pct=100)
+            # event 1001 is a long press start
+            elif data['event'] == 1001:
+                self.log(f'{data["id"]} long press down')
+                if 'delay' in self.args and self.entity_state:
+                    self.cancel_motion_callback(new='off')
+                    self.listen_motion_off(self.delay)
+                    self.turn_on(self.entity, brightness_pct=100)
 
-        # event 1004 is a double click
-        elif data['event'] == 1004:
-            self.log(f'{data["id"]} double click')
-            self.button_double_click()
+            # event 1004 is a double click
+            elif data['event'] == 1004:
+                self.log(f'{data["id"]} double click')
+                self.button_double_click()
+        else:
+            self.log(f'Unhandled button event: {event_name}')
 
-    def button_single_click(self):
+    def button_single_click(self, name: str):
+        self.log(f'button: {name}: single')
         if self.entity_state:
             self.deactivate()
         else:
