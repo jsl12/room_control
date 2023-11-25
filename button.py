@@ -43,7 +43,7 @@ class ButtonController(Mqtt):
             return
         elif action == 'single':
             cause = 'button single click'
-            if self.app.entity_state:
+            if self.get_state(entity_id=self.args['ref_entity']) == 'on':
                 self.app.deactivate(cause=cause)
             else:
                 self.app.activate(cause=cause)
