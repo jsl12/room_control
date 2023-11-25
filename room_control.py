@@ -180,6 +180,29 @@ class RoomController(Hass, Mqtt):
         else:
             raise ValueError('Sleep variable is undefined')
 
+    @property
+    def off_duration(self) -> timedelta:
+        """Determines the time that the motion sensor has to be clear before deactivating
+
+        Priority:
+        - Value in scene definition
+        - Default value
+            - Normal - value in app definition
+            - Sleep - 0
+
+        """
+
+        duration_str = self.current_state().get(
+            'off_duration',
+            self.args.get('off_duration', '00:00:00')
+        )
+
+        try:
+            hours, minutes, seconds = map(int, duration_str.split(':'))
+            return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        except Exception:
+            return timedelta()
+
     def activate(self, *args, cause: str = 'unknown', **kwargs):
         self.log(f'Activating: {cause}')
         scene = self.current_scene()

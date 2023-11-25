@@ -16,30 +16,14 @@ class Motion(Hass):
 
     @property
     def off_duration(self) -> timedelta:
-        """Determines the time that the motion sensor has to be clear before deactivating
-
-        Priority:
-        - Value in scene definition
-        - Default value
-            - Normal - value in app definition
-            - Sleep - 0
-
-        """
-
-        duration_str = self.args.get('off_duration', '00:00:00')
-
-        try:
-            hours, minutes, seconds = map(int, duration_str.split(':'))
-            return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-        except Exception:
-            return timedelta()
+        return self.app.off_duration
 
     def initialize(self):
         self.app: RoomController = self.get_app(self.args['app'])
         self.log(f'Connected to app {self.app.name}')
 
         self.listen_state(self.callback_light_on, self.args['entity'], new='on')
-        self.listen_state(self.callback_light_on, self.args['entity'], new='off')
+        self.listen_state(self.callback_light_off, self.args['entity'], new='off')
 
         self.listen_motion_on()
         self.listen_motion_off(self.off_duration)
