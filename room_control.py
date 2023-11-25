@@ -32,16 +32,6 @@ class RoomController(Hass, Mqtt):
             self.log(f'Setting up input button: {self.friendly_name(ha_button)}')
             self.listen_state(callback=self.activate_any_on, entity_id=ha_button)
 
-        if (button := self.args.get('button')):
-            if not isinstance(button, list):
-                button = [button]
-            for button in button:
-                self.log(f'Setting up button: {button}')
-                self.listen_event(self.handle_button, event='deconz_event', id=button, button=button)
-                topic = f'zigbee2mqtt/{button}'
-                self.mqtt_subscribe(topic, namespace='mqtt')
-                self.listen_event(self.handle_button, "MQTT_MESSAGE", topic=topic, namespace='mqtt', button=button)
-
     @property
     def sensor(self) -> str:
         return self.args['sensor']
@@ -345,36 +335,6 @@ class RoomController(Hass, Mqtt):
                 pass
             except Exception as e:
                 self.log(f'Failed with {type(e)}: {e}')
-
-    def handle_button(self, event_name, data, kwargs):
-        if event_name == 'MQTT_MESSAGE':
-            topic = data['topic']
-            payload = json.loads(data['payload'])
-            try:
-                action = payload['action']
-            except KeyError as e:
-                # self.log(f'No action in: {payload}')
-                return
-            else:
-                if action == '':
-                    # self.log(f'{topic}: {payload}')
-                    pass
-                elif action == 'single':
-                    self.button_single_click(kwargs['button'])
-                else:
-                    self.log(f'Unhandled button event: {event_name}')
-            finally:
-                return
-        else:
-            self.log(f'Unhandled button event: {event_name}')
-
-    def button_single_click(self, name: str):
-        self.log(f'button: {name}: single')
-        cause = 'button single click'
-        if self.entity_state:
-            self.deactivate(cause=cause)
-        else:
-            self.activate(cause=cause)
 
     def get_app_callbacks(self, name: str = None):
         name = name or self.name
