@@ -21,29 +21,24 @@ class Motion(Hass):
         return self.get_entity(self.args['ref_entity'])
 
     @property
-    def ref_entity_state(self) -> bool:
-        return self.ref_entity.get_state() == 'on'
+    async def ref_entity_state(self) -> bool:
+        return (await self.ref_entity.get_state()) == 'on'
 
-    def initialize(self):
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-
-        self.app: RoomController = loop.run_until_complete(self.get_app(self.args['app']))
+    async def initialize(self):
+        self.app: RoomController = await self.get_app(self.args['app'])
         self.log(f'Connected to app {self.app.name}')
 
         self.listen_state(self.callback_light_on, self.ref_entity.entity_id, new='on')
         self.listen_state(self.callback_light_off, self.ref_entity.entity_id, new='off')
 
-        loop.run_until_complete(self.sync_state())
+        await self.sync_state()
 
     async def sync_state(self):
         """Synchronizes the callbacks with the state of the light.
 
         Essentially mimics the `state_change` callback based on the current state of the light.
         """
-        if self.ref_entity_state:
+        if (await self.ref_entity_state):
             await self.callback_light_on()
         else:
             await self.callback_light_off()
