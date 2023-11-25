@@ -1,7 +1,6 @@
 
 import json
 
-from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from room_control import RoomController
 
