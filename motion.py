@@ -1,28 +1,11 @@
 import asyncio
-from datetime import timedelta
 import re
+from datetime import timedelta
 
 from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from room_control import RoomController
 
-
-class CustomEventLoopPolicy(asyncio.DefaultEventLoopPolicy):
-    def get_event_loop(self):
-        try:
-            # Try to get the current event loop
-            loop = super().get_event_loop()
-        except RuntimeError as ex:
-            if "There is no current event loop" in str(ex):
-                # If there's no current loop, create a new one and set it
-                loop = self.new_event_loop()
-                self.set_event_loop(loop)
-            else:
-                raise
-        return loop
-
-# Set the custom event loop policy
-asyncio.set_event_loop_policy(CustomEventLoopPolicy())
 
 class Motion(Hass):
     @property
