@@ -16,6 +16,14 @@ class Motion(Hass):
         return self.sensor.state == 'on'
 
     @property
+    def ref_entity(self) -> Entity:
+        return self.get_entity(self.args['ref_entity'])
+
+    @property
+    def ref_entity_state(self) -> bool:
+        return self.ref_entity.get_state() == 'on'
+
+    @property
     def off_duration(self) -> timedelta:
         return self.app.off_duration
 
@@ -23,8 +31,8 @@ class Motion(Hass):
         self.app: RoomController = self.get_app(self.args['app'])
         self.log(f'Connected to app {self.app.name}')
 
-        self.listen_state(self.callback_light_on, self.args['entity'], new='on')
-        self.listen_state(self.callback_light_off, self.args['entity'], new='off')
+        self.listen_state(self.callback_light_on, self.ref_entity.entity_id, new='on')
+        self.listen_state(self.callback_light_off, self.ref_entity.entity_id, new='off')
 
         self.sync_state()
 
@@ -33,7 +41,7 @@ class Motion(Hass):
 
         Essentially mimics the `state_change` callback based on the current state of the light.
         """
-        if self.app.entity_state:
+        if self.ref_entity_state:
             self.callback_light_on()
         else:
             self.callback_light_off()

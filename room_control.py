@@ -27,47 +27,47 @@ class RoomController(Hass, Mqtt):
             self.log(f'Setting up input button: {self.friendly_name(ha_button)}')
             self.listen_state(callback=self.activate_any_on, entity_id=ha_button)
     
-    @property
-    def entity(self) -> str:
-        return self.args['entity']
+    # @property
+    # def entity(self) -> str:
+    #     return self.args['entity']
 
-    @property
-    def entity_state(self) -> bool:
-        return self.get_state(self.entity) == 'on'
+    # @property
+    # def entity_state(self) -> bool:
+    #     return self.get_state(self.entity) == 'on'
 
-    @entity_state.setter
-    def entity_state(self, new):
-        if isinstance(new, str):
-            if new == 'on':
-                self.turn_on(self.entity)
-            elif new == 'off':
-                self.turn_on(self.entity)
-            else:
-                raise ValueError(f'Invalid value for entity state: {new}')
-        elif isinstance(new, bool):
-            if new:
-                self.turn_on(self.entity)
-                self.log(f'Turned on {self.friendly_name(self.entity)}')
-            else:
-                self.turn_off(self.entity)
-                self.log(f'Turned off {self.friendly_name(self.entity)}')
-        elif isinstance(new, dict):
-            if any(isinstance(val, dict) for val in new.values()):
-                # self.log(f'Setting scene with nested dict: {new}')
-                for entity, state in new.items():
-                    if state.pop('state', 'on') == 'on':
-                        # self.log(f'Setting {entity} state with: {state}')
-                        self.turn_on(entity_id=entity, **state)
-                    else:
-                        self.turn_off(entity)
-            else:
-                if new.pop('state', 'on') == 'on':
-                    self.turn_on(self.entity, **new)
-                else:
-                    self.turn_off(self.entity)
+    # @entity_state.setter
+    # def entity_state(self, new):
+    #     if isinstance(new, str):
+    #         if new == 'on':
+    #             self.turn_on(self.entity)
+    #         elif new == 'off':
+    #             self.turn_on(self.entity)
+    #         else:
+    #             raise ValueError(f'Invalid value for entity state: {new}')
+    #     elif isinstance(new, bool):
+    #         if new:
+    #             self.turn_on(self.entity)
+    #             self.log(f'Turned on {self.friendly_name(self.entity)}')
+    #         else:
+    #             self.turn_off(self.entity)
+    #             self.log(f'Turned off {self.friendly_name(self.entity)}')
+    #     elif isinstance(new, dict):
+    #         if any(isinstance(val, dict) for val in new.values()):
+    #             # self.log(f'Setting scene with nested dict: {new}')
+    #             for entity, state in new.items():
+    #                 if state.pop('state', 'on') == 'on':
+    #                     # self.log(f'Setting {entity} state with: {state}')
+    #                     self.turn_on(entity_id=entity, **state)
+    #                 else:
+    #                     self.turn_off(entity)
+    #         else:
+    #             if new.pop('state', 'on') == 'on':
+    #                 self.turn_on(self.entity, **new)
+    #             else:
+    #                 self.turn_off(self.entity)
 
-        else:
-            raise TypeError(f'Invalid type: {type(new)}: {new}')
+    #     else:
+    #         raise TypeError(f'Invalid type: {type(new)}: {new}')
 
     def parse_states(self):
         def gen():
