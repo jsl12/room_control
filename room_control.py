@@ -157,6 +157,8 @@ class RoomController(Hass, Mqtt):
         if self.sleep_bool:
             if (state := self.args.get('sleep_state')):
                 return state
+            else:
+                return {}
         else:
             time = time or self.get_now().time()
             for state in self.states[::-1]:
