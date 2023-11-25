@@ -5,12 +5,10 @@ from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from room_control import RoomController
 
 
-class ButtonController(Mqtt):
-    def initialize(self):
-        task = self.get_app(self.args['app'])
-        self.app: RoomController = asyncio.get_event_loop().run_until_complete(task)
+class Button(Mqtt):
+    async def initialize(self):
+        self.app: RoomController = await self.get_app(self.args['app'])
         self.setup_buttons(self.args['button'])
-        # self.log(f'Done')
 
     def setup_buttons(self, buttons):
         if isinstance(buttons, list):
@@ -27,7 +25,7 @@ class ButtonController(Mqtt):
 
     async def handle_button(self, event_name, data, kwargs):
         topic = data['topic']
-        self.log(f'Button event for: {topic}')
+        # self.log(f'Button event for: {topic}')
         try:
             payload = json.loads(data['payload'])
             action = payload['action']
