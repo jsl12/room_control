@@ -1,4 +1,4 @@
-
+import asyncio
 import json
 
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
@@ -7,8 +7,10 @@ from room_control import RoomController
 
 class ButtonController(Mqtt):
     def initialize(self):
+        task = self.get_app(self.args['app'])
+        self.app: RoomController = asyncio.get_event_loop().run_until_complete(task)
         self.setup_buttons(self.args['button'])
-        self.app: RoomController = self.get_app(self.args['app'])
+        # self.log(f'Done')
 
     def setup_buttons(self, buttons):
         if isinstance(buttons, list):
@@ -21,11 +23,11 @@ class ButtonController(Mqtt):
         topic = f'zigbee2mqtt/{name}'
         self.mqtt_subscribe(topic, namespace='mqtt')
         self.listen_event(self.handle_button, "MQTT_MESSAGE", topic=topic, namespace='mqtt', button=name)
-        self.log(f'{name} controls app {self.args["app"]}')
+        self.log(f'"{topic}" controls app {self.app.name}')
 
-    def handle_button(self, event_name, data, kwargs):
+    async def handle_button(self, event_name, data, kwargs):
         topic = data['topic']
-        # self.log(f'Button event for: {topic}')
+        self.log(f'Button event for: {topic}')
         try:
             payload = json.loads(data['payload'])
             action = payload['action']
@@ -36,16 +38,17 @@ class ButtonController(Mqtt):
             return
         else:
             self.log(f'{button}: {action}')
-            self.handle_action(action)
+            await self.handle_action(action)
 
-    def handle_action(self, action: str):
+    async def handle_action(self, action: str):
         if action == '':
             return
         elif action == 'single':
             cause = 'button single click'
-            if self.get_state(entity_id=self.args['ref_entity']) == 'on':
+            state = await self.get_state(entity_id=self.args['ref_entity'])
+            if state == 'on':
                 self.app.deactivate(cause=cause)
             else:
-                self.app.activate(cause=cause)
+                await self.app.activate(cause=cause)
         else:
             pass
