@@ -1,12 +1,12 @@
+import json
 from copy import deepcopy
 from datetime import time, timedelta
-from gc import callbacks
-from telnetlib import KERMIT
 from typing import List
-import json
+
 import astral
 from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
+
 
 class RoomController(Hass, Mqtt):
     """Class for linking an light with a motion sensor.
@@ -41,16 +41,6 @@ class RoomController(Hass, Mqtt):
                 topic = f'zigbee2mqtt/{button}'
                 self.mqtt_subscribe(topic, namespace='mqtt')
                 self.listen_event(self.handle_button, "MQTT_MESSAGE", topic=topic, namespace='mqtt', button=button)
-
-
-        if (door := self.args.get('door')):
-            door_entity = self.get_entity(door)
-            self.log(f'Setting up door: {door_entity.friendly_name}')
-            self.listen_state(
-                callback=self.activate_all_off,
-                entity_id=door,
-                new='on'
-            )
 
     @property
     def sensor(self) -> str:
@@ -315,12 +305,16 @@ class RoomController(Hass, Mqtt):
             self.log(f'ERROR: unknown scene: {scene}')
 
     def activate_all_off(self, *args, **kwargs):
+        """Activate if all of the entities are on
+        """
         if self.all_off:
             self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
 
     def activate_any_on(self, *args, **kwargs):
+        """Activate if any of the entities are on
+        """
         if self.any_on:
             self.activate(*args, **kwargs)
         else:
@@ -362,29 +356,15 @@ class RoomController(Hass, Mqtt):
                 # self.log(f'No action in: {payload}')
                 return
             else:
-                if action == 'single':
+                if action == '':
+                    # self.log(f'{topic}: {payload}')
+                    pass
+                elif action == 'single':
                     self.button_single_click(kwargs['button'])
-                elif action != '':
-                    self.log(f'{topic}: {payload}')
+                else:
+                    self.log(f'Unhandled button event: {event_name}')
             finally:
                 return
-        elif event_name == 'deconz_event':
-            # event 1002 is a single button press
-            if data['event'] == 1002:
-                self.button_single_click(kwargs['button'])
-
-            # event 1001 is a long press start
-            elif data['event'] == 1001:
-                self.log(f'{data["id"]} long press down')
-                if 'delay' in self.args and self.entity_state:
-                    self.cancel_motion_callback(new='off')
-                    self.listen_motion_off(self.delay)
-                    self.turn_on(self.entity, brightness_pct=100)
-
-            # event 1004 is a double click
-            elif data['event'] == 1004:
-                self.log(f'{data["id"]} double click')
-                self.button_double_click()
         else:
             self.log(f'Unhandled button event: {event_name}')
 
@@ -395,11 +375,6 @@ class RoomController(Hass, Mqtt):
             self.deactivate(cause=cause)
         else:
             self.activate(cause=cause)
-
-    def button_double_click(self):
-        if 'sleep' in self.args:
-            self.sleep_bool = not self.sleep_bool
-            self.activate(cause='button double click')
 
     def get_app_callbacks(self, name: str = None):
         name = name or self.name
