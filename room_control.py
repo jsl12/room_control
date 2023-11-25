@@ -1,4 +1,3 @@
-import json
 from copy import deepcopy
 from datetime import time, timedelta
 from typing import List
@@ -26,48 +25,26 @@ class RoomController(Hass, Mqtt):
         if (ha_button := self.args.get('ha_button')):
             self.log(f'Setting up input button: {self.friendly_name(ha_button)}')
             self.listen_state(callback=self.activate_any_on, entity_id=ha_button)
-    
-    # @property
-    # def entity(self) -> str:
-    #     return self.args['entity']
 
-    # @property
-    # def entity_state(self) -> bool:
-    #     return self.get_state(self.entity) == 'on'
+    def refresh_state_times(self, *args, **kwargs):
+        """Resets the `self.states` attribute to a newly parsed version of the states.
 
-    # @entity_state.setter
-    # def entity_state(self, new):
-    #     if isinstance(new, str):
-    #         if new == 'on':
-    #             self.turn_on(self.entity)
-    #         elif new == 'off':
-    #             self.turn_on(self.entity)
-    #         else:
-    #             raise ValueError(f'Invalid value for entity state: {new}')
-    #     elif isinstance(new, bool):
-    #         if new:
-    #             self.turn_on(self.entity)
-    #             self.log(f'Turned on {self.friendly_name(self.entity)}')
-    #         else:
-    #             self.turn_off(self.entity)
-    #             self.log(f'Turned off {self.friendly_name(self.entity)}')
-    #     elif isinstance(new, dict):
-    #         if any(isinstance(val, dict) for val in new.values()):
-    #             # self.log(f'Setting scene with nested dict: {new}')
-    #             for entity, state in new.items():
-    #                 if state.pop('state', 'on') == 'on':
-    #                     # self.log(f'Setting {entity} state with: {state}')
-    #                     self.turn_on(entity_id=entity, **state)
-    #                 else:
-    #                     self.turn_off(entity)
-    #         else:
-    #             if new.pop('state', 'on') == 'on':
-    #                 self.turn_on(self.entity, **new)
-    #             else:
-    #                 self.turn_off(self.entity)
+        Parsed states have an absolute time for a certain day. 
+        """
+        # re-parse the state strings into times for the current day
+        self.states = self.parse_states()
 
-    #     else:
-    #         raise TypeError(f'Invalid type: {type(new)}: {new}')
+        # schedule the transitions
+        for state in self.states:
+            dt = str(state['time'])[:8]
+            self.log(f'Scheduling transition at: {dt}')
+            try:
+                self.run_at(callback=self.activate_any_on, start=dt)
+            except ValueError:
+                # happens when the callback time is in the past
+                pass
+            except Exception as e:
+                self.log(f'Failed with {type(e)}: {e}')
 
     def parse_states(self):
         def gen():
@@ -107,6 +84,7 @@ class RoomController(Hass, Mqtt):
             time = time or self.get_now().time()
             for state in self.states[::-1]:
                 if state['time'] <= time:
+                    self.log(f'Selected state from {state["time"]}')
                     return state
             else:
                 return self.states[-1]
@@ -237,22 +215,3 @@ class RoomController(Hass, Mqtt):
             self.turn_off(entity)
             self.log(f'Turned off {entity}')
 
-    def refresh_state_times(self, *args, **kwargs):
-        """Resets the `self.states` attribute to a newly parsed version of the states.
-
-        Parsed states have an absolute time for a certain day. 
-        """
-        # re-parse the state strings into times for the current day
-        self.states = self.parse_states()
-
-        # schedule the transitions
-        for state in self.states:
-            dt = str(state['time'])[:8]
-            self.log(f'Scheduling transition at: {dt}')
-            try:
-                self.run_at(callback=self.activate_any_on, start=dt)
-            except ValueError:
-                # happens when the callback time is in the past
-                pass
-            except Exception as e:
-                self.log(f'Failed with {type(e)}: {e}')
