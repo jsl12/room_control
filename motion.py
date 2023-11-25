@@ -89,21 +89,20 @@ class Motion(Hass):
         }
         return callbacks
                 
-    # def get_sensor_callbacks(self):
-    #     return {
-    #         handle: info
-    #         for handle, info in self.get_app_callbacks().items()
-    #         if info['entity'] == self.sensor
-    #     }
+    def get_sensor_callbacks(self):
+        return {
+            handle: info
+            for handle, info in self.get_app_callbacks().items()
+            if info['entity'] == self.sensor.entity_id
+        }
 
     def cancel_motion_callback(self, new: str):
-        callbacks = self.get_app_callbacks()
+        callbacks = self.get_sensor_callbacks()
         # self.log(f'Found {len(callbacks)}')
         for handle, info in callbacks.items():
             entity = info["entity"]
             new_match = re.match('new=(?P<new>.*?)\s', info['kwargs'])
             # self.log(f'{handle}: {info["entity"]}: {info["kwargs"]}')
-            if new_match is not None:
-                if new_match.group("new") == new and entity == self.sensor.entity_id:
-                    self.cancel_listen_state(handle)
-                    self.log(f'cancelled: {self.friendly_name(entity)}: {new}')
+            if new_match is not None and new_match.group("new") == new:
+                self.cancel_listen_state(handle)
+                self.log(f'cancelled: {self.friendly_name(entity)}: {new}')
