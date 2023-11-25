@@ -20,13 +20,8 @@ class RoomController(Hass, Mqtt):
 
     def initialize(self):
         self.app_entities = self.gather_app_entities()
-        
         self.refresh_state_times()
         self.run_daily(callback=self.refresh_state_times, start='00:00:00')
-
-        # sets up motion callbacks
-        # self.state_change_handle = self.listen_state(self.handle_state_change, self.entity)
-        # self.sync_state()
 
         if (ha_button := self.args.get('ha_button')):
             self.log(f'Setting up input button: {self.friendly_name(ha_button)}')
@@ -155,14 +150,6 @@ class RoomController(Hass, Mqtt):
         return any(self.get_state(entity) == 'on' for entity in self.app_entities)
 
     @property
-    def delay(self) -> timedelta:
-        try:
-            hours, minutes, seconds = map(int, self.args['delay'].split(':'))
-            return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-        except Exception:
-            return timedelta()
-
-    @property
     def sleep_bool(self) -> bool:
         if (sleep_var := self.args.get('sleep')):
             return self.get_state(sleep_var) == 'on'
@@ -231,6 +218,7 @@ class RoomController(Hass, Mqtt):
         """Activate if all of the entities are off
         """
         if self.all_off:
+            self.log(f'Activate all off kwargs: {kwargs}')
             self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
