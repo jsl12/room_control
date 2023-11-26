@@ -35,13 +35,12 @@ class Button(Mqtt):
         except KeyError as e:
             return
         else:
-            self.log(f'{button}: {action}')
-            await self.handle_action(action)
+            if action != '':
+                await self.handle_action(action)
 
     async def handle_action(self, action: str):
-        if action == '':
-            return
-        elif action == 'single':
+        if action == 'single':
+            self.log(f' {action.upper()} '.center(50, '='))
             cause = 'button single click'
             state = await self.get_state(entity_id=self.args['ref_entity'])
             if state == 'on':

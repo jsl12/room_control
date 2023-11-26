@@ -65,7 +65,7 @@ class RoomController(Hass, Mqtt):
             dt = str(state['time'])[:8]
             self.log(f'Scheduling transition at: {dt}')
             try:
-                await self.run_at(callback=self.activate_any_on, start=dt)
+                await self.run_at(callback=self.activate_any_on, start=dt, cause='scheduled transition')
             except ValueError:
                 # happens when the callback time is in the past
                 pass
@@ -205,21 +205,21 @@ class RoomController(Hass, Mqtt):
             self.log(f'ERROR: unknown scene: {scene}')
 
     @utils.sync_wrapper
-    async def activate_all_off(self, *args, **kwargs):
+    async def activate_all_off(self, entity, attribute = None, old = None, new = None, kwargs = None):
         """Activate if all of the entities are off
         """
         if self.all_off:
-            self.log(f'Activate all off kwargs: {kwargs}')
-            self.activate(*args, **kwargs)
+            # self.log(f'Activate all off args/kwargs: {kwargs}')
+            self.activate(**kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
 
     @utils.sync_wrapper
-    async def activate_any_on(self, *args, **kwargs):
+    async def activate_any_on(self, entity, attribute = None, old = None, new = None, kwargs = None):
         """Activate if any of the entities are on
         """
         if self.any_on:
-            self.activate(*args, **kwargs)
+            self.activate(**kwargs)
         else:
             self.log(f'Skipped activating - everything is off')
 
