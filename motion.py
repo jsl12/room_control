@@ -30,21 +30,13 @@ class Motion(Hass):
         self.app: RoomController = await self.get_app(self.args['app'])
         self.log(f'Connected to app {self.app.name}')
 
+        base_kwargs = dict(
+            entity_id=self.ref_entity.entity_id,
+            immediate=True, # avoids needing to sync the state
+        )
         # don't need to await these because they'll already get turned into a task by the utils.sync_wrapper decorator
-        self.listen_state(self.callback_light_on, self.ref_entity.entity_id, new='on')
-        self.listen_state(self.callback_light_off, self.ref_entity.entity_id, new='off')
-        self.sync_state()
-
-    @utils.sync_wrapper
-    async def sync_state(self):
-        """Synchronizes the callbacks with the state of the light.
-
-        Essentially mimics the `state_change` callback based on the current state of the light.
-        """
-        if (await self.ref_entity_state):
-            await self.callback_light_on()
-        else:
-            await self.callback_light_off()
+        self.listen_state(**base_kwargs, new='on', callback=self.callback_light_on)
+        self.listen_state(**base_kwargs, new='off', callback=self.callback_light_off)
 
     @utils.sync_wrapper
     async def listen_motion_on(self):
