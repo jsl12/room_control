@@ -24,12 +24,9 @@ class Button(Mqtt):
         self.log(f'"{topic}" controls app {self.app.name}')
 
     async def handle_button(self, event_name, data, kwargs):
-        topic = data['topic']
-        # self.log(f'Button event for: {topic}')
         try:
             payload = json.loads(data['payload'])
             action = payload['action']
-            button = kwargs['button']
         except json.JSONDecodeError:
             self.log(f'Error decoding JSON from {data["payload"]}', level='ERROR')
         except KeyError as e:
@@ -44,7 +41,7 @@ class Button(Mqtt):
             cause = 'button single click'
             state = await self.get_state(entity_id=self.args['ref_entity'])
             if state == 'on':
-                self.app.deactivate(cause=cause)
+                self.app.deactivate(entity='', kwargs={'cause': cause})
             else:
                 await self.app.activate(cause=cause)
         else:
