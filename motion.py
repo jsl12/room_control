@@ -69,7 +69,7 @@ class Motion(Hass):
     async def callback_light_on(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns on
         """
-        self.log('Light on callback')
+        self.log(f'{entity} turned on')
         # need this one to finish before continuing to the next line
         await self.cancel_motion_callback(new='on')
         self.listen_motion_off(await self.app.off_duration())
@@ -78,7 +78,7 @@ class Motion(Hass):
     async def callback_light_off(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns off
         """
-        self.log('Light off callback')
+        self.log(f'{entity} turned off')
         # need this one to finish before continuing to the next line
         await self.cancel_motion_callback(new='off')
         self.listen_motion_on()
@@ -111,4 +111,4 @@ class Motion(Hass):
             # self.log(f'{handle}: {info["entity"]}: {info["kwargs"]}')
             if new_match is not None and new_match.group("new") == new:
                 await self.cancel_listen_state(handle)
-                self.log(f'cancelled: {await self.friendly_name(entity)}: {new}')
+                self.log(f'cancelled {new} callback for sensor {await self.friendly_name(entity)}')
