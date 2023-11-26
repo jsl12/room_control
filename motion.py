@@ -55,7 +55,7 @@ class Motion(Hass):
     async def listen_motion_off(self, duration: timedelta):
         """Sets up the motion off callback to deactivate the room
         """
-        self.log(f'Waiting for motion to stop on {self.sensor.friendly_name}')
+        self.log(f'Waiting for motion to stop on {self.sensor.friendly_name} for {duration}')
         self.listen_state(
             callback=self.app.deactivate,
             entity_id=self.sensor.entity_id,
