@@ -98,7 +98,7 @@ class RoomController(Hass, Mqtt):
                 yield state
 
         states = [s async for s in gen()]
-        states = sorted(states, key=lambda s: s['time'])
+        states = sorted(states, key=lambda s: s['time'], reverse=True)
         return states
 
     async def current_state(self, time: time = None):
@@ -109,12 +109,12 @@ class RoomController(Hass, Mqtt):
             else:
                 return {}
         else:
-            now: datetime = await self.get_now()
-            self.log(f'Getting state for datetime: {now.strftime("%I:%M:%S %p")}')
+            # now: datetime = await self.get_now()
+            # self.log(f'Getting state for datetime: {now.strftime("%I:%M:%S %p")}')
             time = time or (await self.get_now()).time()
-            for state in self.states[::-1]:
+            for state in self.states:
                 if state['time'] <= time:
-                    self.log(f'Selected state from {state["time"].strftime("%I:%M:%S %p")}')
+                    # self.log(f'Selected state from {state["time"].strftime("%I:%M:%S%p")}')
                     return state
             else:
                 return self.states[-1]
@@ -180,7 +180,8 @@ class RoomController(Hass, Mqtt):
             return timedelta()
 
     @utils.sync_wrapper
-    async def activate(self, *args, cause: str = 'unknown', **kwargs):
+    async def activate(self, entity = None, attribute = None, old = None, new = None, kwargs = None):
+        cause = kwargs.get('cause', 'unknown')
         self.log(f'Activating: {cause}')
         scene = await self.current_scene()
 
@@ -205,28 +206,36 @@ class RoomController(Hass, Mqtt):
             self.log(f'ERROR: unknown scene: {scene}')
 
     @utils.sync_wrapper
-    async def activate_all_off(self, entity, attribute = None, old = None, new = None, kwargs = None):
+    async def activate_all_off(self, *args, **kwargs):
         """Activate if all of the entities are off
         """
         if self.all_off:
             # self.log(f'Activate all off args/kwargs: {kwargs}')
-            self.activate(**kwargs)
+            self.activate( *args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
 
     @utils.sync_wrapper
-    async def activate_any_on(self, entity, attribute = None, old = None, new = None, kwargs = None):
+    async def activate_any_on(self, *args, **kwargs):
         """Activate if any of the entities are on
         """
         if self.any_on:
-            self.activate(**kwargs)
+            self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is off')
 
-    def deactivate(self, entity, attribute = None, old = None, new = None, kwargs = None):
+    def deactivate(self, entity = None, attribute = None, old = None, new = None, kwargs = None):
         cause = kwargs.get('cause', 'unknown')
         self.log(f'Deactivating: {cause}')
-        for entity in self.app_entities:
-            self.turn_off(entity)
-            self.log(f'Turned off {entity}')
+        for e in self.app_entities:
+            self.turn_off(e)
+            self.log(f'Turned off {e}')
 
+    @utils.sync_wrapper
+    async def toggle(self, *args, **kwargs):
+        state = await self.get_state(self.args['ref_entity'])
+        kwargs['kwargs']['cause'] += f': toggle while {state}'
+        if state == 'on':
+            self.deactivate(*args, **kwargs)
+        else:
+            await self.activate(*args, **kwargs)

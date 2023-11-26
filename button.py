@@ -38,11 +38,6 @@ class Button(Mqtt):
     async def handle_action(self, action: str):
         if action == 'single':
             self.log(f' {action.upper()} '.center(50, '='))
-            cause = 'button single click'
-            state = await self.get_state(entity_id=self.args['ref_entity'])
-            if state == 'on':
-                self.app.deactivate(entity='', kwargs={'cause': cause})
-            else:
-                await self.app.activate(cause=cause)
+            await self.app.toggle(kwargs={'cause': 'button single click'})
         else:
             pass
