@@ -6,6 +6,8 @@ from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from room_control import RoomController
 
+from appdaemon import utils
+
 
 class Motion(Hass):
     @property
@@ -28,11 +30,12 @@ class Motion(Hass):
         self.app: RoomController = await self.get_app(self.args['app'])
         self.log(f'Connected to app {self.app.name}')
 
+        # don't need to await these because they'll already get turned into a task by the utils.sync_wrapper decorator
         self.listen_state(self.callback_light_on, self.ref_entity.entity_id, new='on')
         self.listen_state(self.callback_light_off, self.ref_entity.entity_id, new='off')
+        self.sync_state()
 
-        await self.sync_state()
-
+    @utils.sync_wrapper
     async def sync_state(self):
         """Synchronizes the callbacks with the state of the light.
 
@@ -43,11 +46,12 @@ class Motion(Hass):
         else:
             await self.callback_light_off()
 
+    @utils.sync_wrapper
     async def listen_motion_on(self):
         """Sets up the motion on callback to activate the room
         """
         self.log(f'Waiting for motion on {self.sensor.friendly_name}')
-        self.motion_on_handle = await self.listen_state(
+        self.listen_state(
             callback=self.app.activate_all_off,
             entity_id=self.sensor.entity_id,
             new='on',
@@ -55,11 +59,12 @@ class Motion(Hass):
             cause='motion on'
         )
 
+    @utils.sync_wrapper
     async def listen_motion_off(self, duration: timedelta):
         """Sets up the motion off callback to deactivate the room
         """
         self.log(f'Waiting for motion to stop on {self.sensor.friendly_name}')
-        self.motion_off_handle = await self.listen_state(
+        self.listen_state(
             callback=self.app.deactivate,
             entity_id=self.sensor.entity_id,
             new='off',
@@ -72,15 +77,17 @@ class Motion(Hass):
         """Called when the light turns on
         """
         self.log('Light on callback')
+        # need this one to finish before continuing to the next line
         await self.cancel_motion_callback(new='on')
-        await self.listen_motion_off(await self.app.off_duration())
+        self.listen_motion_off(await self.app.off_duration())
 
     async def callback_light_off(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns off
         """
         self.log('Light off callback')
+        # need this one to finish before continuing to the next line
         await self.cancel_motion_callback(new='off')
-        await self.listen_motion_on()
+        self.listen_motion_on()
 
     async def get_app_callbacks(self, name: str = None):
         """Gets all the callbacks associated with the app
