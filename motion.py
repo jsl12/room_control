@@ -73,6 +73,7 @@ class Motion(Hass):
             cause='motion off'
         )
 
+    @utils.sync_wrapper
     async def callback_light_on(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns on
         """
@@ -81,6 +82,7 @@ class Motion(Hass):
         await self.cancel_motion_callback(new='on')
         self.listen_motion_off(await self.app.off_duration())
 
+    @utils.sync_wrapper
     async def callback_light_off(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns off
         """

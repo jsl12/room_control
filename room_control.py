@@ -1,6 +1,6 @@
 import asyncio
 from copy import deepcopy
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from typing import List
 
 import appdaemon.utils as utils
@@ -103,17 +103,18 @@ class RoomController(Hass, Mqtt):
 
     async def current_state(self, time: time = None):
         if (await self.sleep_bool()):
+            self.log(f'sleep: active')
             if (state := self.args.get('sleep_state')):
                 return state
             else:
                 return {}
         else:
-            now = await self.get_now()
-            self.log(f'Getting state for datetime: {now}')
+            now: datetime = await self.get_now()
+            self.log(f'Getting state for datetime: {now.strftime("%I:%M:%S %p")}')
             time = time or (await self.get_now()).time()
             for state in self.states[::-1]:
                 if state['time'] <= time:
-                    self.log(f'Selected state from {state["time"]}')
+                    self.log(f'Selected state from {state["time"].strftime("%I:%M:%S %p")}')
                     return state
             else:
                 return self.states[-1]
@@ -178,6 +179,7 @@ class RoomController(Hass, Mqtt):
         except Exception:
             return timedelta()
 
+    @utils.sync_wrapper
     async def activate(self, *args, cause: str = 'unknown', **kwargs):
         self.log(f'Activating: {cause}')
         scene = await self.current_scene()
@@ -202,20 +204,22 @@ class RoomController(Hass, Mqtt):
         else:
             self.log(f'ERROR: unknown scene: {scene}')
 
+    @utils.sync_wrapper
     async def activate_all_off(self, *args, **kwargs):
         """Activate if all of the entities are off
         """
         if self.all_off:
             self.log(f'Activate all off kwargs: {kwargs}')
-            await self.activate(*args, **kwargs)
+            self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
 
+    @utils.sync_wrapper
     async def activate_any_on(self, *args, **kwargs):
         """Activate if any of the entities are on
         """
         if self.any_on:
-            await self.activate(*args, **kwargs)
+            self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is off')
 
