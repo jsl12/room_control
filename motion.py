@@ -35,7 +35,7 @@ class Motion(Hass):
             immediate=True, # avoids needing to sync the state
         )
         # don't need to await these because they'll already get turned into a task by the utils.sync_wrapper decorator
-        self.listen_state(**base_kwargs, new='on', callback=self.callback_light_on)
+        self.listen_state(**base_kwargs, attribute='brightness', callback=self.callback_light_on)
         self.listen_state(**base_kwargs, new='off', callback=self.callback_light_off)
 
     @utils.sync_wrapper
@@ -69,10 +69,11 @@ class Motion(Hass):
     async def callback_light_on(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns on
         """
-        self.log(f'{entity} turned on')
-        # need this one to finish before continuing to the next line
-        await self.cancel_motion_callback(new='on')
-        self.listen_motion_off(await self.app.off_duration())
+        if new is not None:
+            self.log(f'{entity} turned on')
+            # need this one to finish before continuing to the next line
+            await self.cancel_motion_callback(new='on')
+            self.listen_motion_off(await self.app.off_duration())
 
     @utils.sync_wrapper
     async def callback_light_off(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
