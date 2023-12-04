@@ -1,7 +1,7 @@
 import asyncio
 from copy import deepcopy
 from datetime import datetime, time, timedelta
-from typing import List
+from typing import Dict, List
 
 import appdaemon.utils as utils
 import astral
@@ -22,7 +22,7 @@ class RoomController(Hass, Mqtt):
 
     async def initialize(self):
         self.app_entities = await self.gather_app_entities()
-        self.log(f'entities: {self.app_entities}')
+        # self.log(f'entities: {self.app_entities}')
         await self.refresh_state_times()
         await self.run_daily(callback=self.refresh_state_times, start='00:00:00')
 
@@ -123,23 +123,30 @@ class RoomController(Hass, Mqtt):
         if (state := (await self.current_state(time=time))) is not None:
             return state['scene']
 
-    @property
-    def all_off(self) -> bool:
+    async def app_entity_states(self) -> Dict[str, str]:
+        states = {
+            entity: (await self.get_state(entity))
+            for entity in self.app_entities
+        }
+        return states
+
+    async def all_off(self) -> bool:
         """"All off" is the logic opposite of "any on"
 
         Returns:
             bool: Whether all the lights associated with the app are off
         """
-        return all(self.get_state(entity) != 'on' for entity in self.app_entities)
+        states = await self.app_entity_states()
+        return all(state != 'on' for entity, state in states.items())
 
-    @property
-    def any_on(self) -> bool:
+    async def any_on(self) -> bool:
         """"Any on" is the logic opposite of "all off"
 
         Returns:
             bool: Whether any of the lights associated with the app are on
         """
-        return any(self.get_state(entity) == 'on' for entity in self.app_entities)
+        states = await self.app_entity_states()
+        return any(state == 'on' for entity, state in states.items())
 
     async def sleep_bool(self) -> bool:
         if (sleep_var := self.args.get('sleep')):
@@ -207,19 +214,18 @@ class RoomController(Hass, Mqtt):
 
     @utils.sync_wrapper
     async def activate_all_off(self, *args, **kwargs):
-        """Activate if all of the entities are off
+        """Activate if all of the entities are off. Args and kwargs are passed directly to self.activate()
         """
-        if self.all_off:
-            # self.log(f'Activate all off args/kwargs: {kwargs}')
-            self.activate( *args, **kwargs)
+        if (await self.all_off()):
+            self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is not off')
 
     @utils.sync_wrapper
     async def activate_any_on(self, *args, **kwargs):
-        """Activate if any of the entities are on
+        """Activate if any of the entities are on. Args and kwargs are passed directly to self.activate()
         """
-        if self.any_on:
+        if (await self.any_on()):
             self.activate(*args, **kwargs)
         else:
             self.log(f'Skipped activating - everything is off')
