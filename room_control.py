@@ -99,7 +99,7 @@ class RoomController(Hass, Mqtt):
                 yield state
 
         states = [s async for s in gen()]
-        # states = sorted(states, key=lambda s: s['time'], reverse=True)
+        states = sorted(states, key=lambda s: s['time'], reverse=True)
         return states
 
     async def current_state(self, time: time = None):
@@ -115,7 +115,7 @@ class RoomController(Hass, Mqtt):
             time = time or (await self.get_now()).time()
             time_fmt = "%I:%M %p"
             self.log(f'Getting state before: {time.strftime(time_fmt)}')
-            for state in self.states[::-1]:
+            for state in self.states:
                 time_str = state["time"].strftime(time_fmt)
                 if state['time'] <= time:
                     self.log(f'Selected state from {time_str}')
