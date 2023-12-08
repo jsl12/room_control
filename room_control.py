@@ -113,15 +113,18 @@ class RoomController(Hass, Mqtt):
             # now: datetime = await self.get_now()
             # self.log(f'Getting state for datetime: {now.strftime("%I:%M:%S %p")}')
             time = time or (await self.get_now()).time()
-            for state in self.states:
+            time_fmt = "%I:%M %p"
+            self.log(f'Getting state before: {time.strftime(time_fmt)}')
+            for state in self.states[::-1]:
+                time_str = state["time"].strftime(time_fmt)
                 if state['time'] <= time:
-                    res = state
+                    self.log(f'Selected state from {time_str}')
+                    return state
+                else:
+                    self.log(f'Not {time_str}')
             else:
                 self.log(f'Defaulting to first state')
-                res = self.states[0]
-            
-            self.log(f'Selected state from {res["time"].strftime("%I:%M:%S %p")}')
-            return res
+                return self.states[0]
 
     async def current_scene(self, time: time = None):
         if (state := (await self.current_state(time=time))) is not None:
