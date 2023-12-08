@@ -101,7 +101,7 @@ class Motion(Hass):
 
     async def cancel_motion_callback(self):
         callbacks = await self.get_sensor_callbacks()
-        self.log(f'Found {len(callbacks)} callbacks for {self.sensor.entity_id}')
+        # self.log(f'Found {len(callbacks)} callbacks for {self.sensor.entity_id}')
         for handle, info in callbacks.items():
             entity = info["entity"]
             kwargs = info['kwargs']

@@ -62,15 +62,16 @@ class RoomController(Hass, Mqtt):
 
         # schedule the transitions
         for state in self.states:
-            dt = str(state['time'])[:8]
-            self.log(f'Scheduling transition at: {dt}')
+            t: time = state['time']
             try:
-                await self.run_at(callback=self.activate_any_on, start=dt, cause='scheduled transition')
+                await self.run_at(callback=self.activate_any_on, start=t.strftime('%H:%M:%S'), cause='scheduled transition')
             except ValueError:
                 # happens when the callback time is in the past
                 pass
             except Exception as e:
                 self.log(f'Failed with {type(e)}: {e}')
+            else:
+                self.log(f'Scheduled transition at: {t.strftime("%I:%M:%S %p")}')
 
     async def parse_states(self):
         async def gen():
@@ -98,7 +99,7 @@ class RoomController(Hass, Mqtt):
                 yield state
 
         states = [s async for s in gen()]
-        states = sorted(states, key=lambda s: s['time'], reverse=True)
+        # states = sorted(states, key=lambda s: s['time'], reverse=True)
         return states
 
     async def current_state(self, time: time = None):
@@ -114,10 +115,13 @@ class RoomController(Hass, Mqtt):
             time = time or (await self.get_now()).time()
             for state in self.states:
                 if state['time'] <= time:
-                    # self.log(f'Selected state from {state["time"].strftime("%I:%M:%S%p")}')
-                    return state
+                    res = state
             else:
-                return self.states[-1]
+                self.log(f'Defaulting to first state')
+                res = self.states[0]
+            
+            self.log(f'Selected state from {res["time"].strftime("%I:%M:%S %p")}')
+            return res
 
     async def current_scene(self, time: time = None):
         if (state := (await self.current_state(time=time))) is not None:
@@ -236,12 +240,3 @@ class RoomController(Hass, Mqtt):
         for e in self.app_entities:
             self.turn_off(e)
             self.log(f'Turned off {e}')
-
-    @utils.sync_wrapper
-    async def toggle(self, *args, **kwargs):
-        state = await self.get_state(self.args['ref_entity'])
-        kwargs['kwargs']['cause'] += f': toggle while {state}'
-        if state == 'on':
-            self.deactivate(*args, **kwargs)
-        else:
-            await self.activate(*args, **kwargs)
