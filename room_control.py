@@ -195,7 +195,11 @@ class RoomController(Hass, Mqtt):
 
     @utils.sync_wrapper
     async def activate(self, entity = None, attribute = None, old = None, new = None, kwargs = None):
-        cause = kwargs.get('cause', 'unknown')
+        if kwargs is not None:
+            cause = kwargs.get('cause', 'unknown')
+        else:
+            cause = 'unknown'
+            
         self.log(f'Activating: {cause}')
         scene = await self.current_scene()
 
