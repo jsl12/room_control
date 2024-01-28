@@ -334,6 +334,12 @@ class RoomController(Hass, Mqtt):
         else:
             self.log(f'Skipped activating - everything is off')
 
+    def toggle_activate(self, *args, **kwargs):
+        if self.any_on():
+            self.deactivate(*args, **kwargs)
+        else:
+            self.activate(*args, **kwargs)
+
     def deactivate(self, entity = None, attribute = None, old = None, new = None, kwargs = None):
         cause = kwargs.get('cause', 'unknown')
         self.log(f'Deactivating: {cause}')
