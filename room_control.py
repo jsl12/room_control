@@ -9,7 +9,8 @@ from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from astral import SunDirection
-from console import setup_logging
+from console import console, setup_logging, deinit_logging
+from rich.table import Table
 
 
 def str_to_timedelta(input_str: str) -> datetime.timedelta:
@@ -85,9 +86,19 @@ class RoomConfig:
             cfg: Dict = yaml.load(f, Loader=yaml.SafeLoader)[app_name]
         return cls.from_app_config(cfg)
 
+    def rich_table(self, app_name: str) -> Table:
+        table = Table(title=app_name, expand=True, highlight=True, padding=1, collapse_padding=True)
+        table.add_column('Time')
+        table.add_column('Scene')
+        for state in self.states:
+            table.add_row(state.time.strftime('%I:%M:%S %p'), str(state.scene))
+        return table
+
     def sort_states(self):
         """Should only be called after all the times have been resolved"""
-        assert all(isinstance(state.time, datetime.time) for state in self.states), 'Times have not all been resolved yet'
+        assert all(
+            isinstance(state.time, datetime.time) for state in self.states
+        ), 'Times have not all been resolved yet'
         self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
 
     def current_state(self, now: datetime.time) -> RoomState:
@@ -117,8 +128,9 @@ class RoomConfig:
             return state.off_duration
 
 
+@dataclass(init=False)
 class RoomController(Hass, Mqtt):
-    """Class for linking an light with a motion sensor.
+    """Class for linking room's lights with a motion sensor.
 
     - Separate the turning on and turning off functions.
     - Use the state change of the light to set up the event for changing to the other state
@@ -126,6 +138,8 @@ class RoomController(Hass, Mqtt):
         - `handle_off`
     - When the light comes on, check if it's attributes match what they should, given the time.
     """
+
+    rich_logging: bool = False
 
     @property
     def states(self) -> List[RoomState]:
@@ -137,13 +151,21 @@ class RoomController(Hass, Mqtt):
         self._room_config.states = new
 
     def initialize(self):
-        if self.args.get('rich', False):
-            setup_logging(self)
+        if (level := self.args.get('rich', False)):
+            setup_logging(self, level)
+            self.rich_logging = True
+
+        self.log(f'Initializing {self}')
 
         self.app_entities = self.gather_app_entities()
         # self.log(f'entities: {self.app_entities}')
         self.refresh_state_times()
         self.run_daily(callback=self.refresh_state_times, start='00:00:00')
+
+    def terminate(self):
+        self.log('[bold red]Terminating[/]', level='DEBUG')
+        deinit_logging(self)
+        self.log('Success', level='DEBUG')
 
     def gather_app_entities(self) -> List[str]:
         """Returns a list of all the entities involved in any of the states"""
@@ -166,8 +188,7 @@ class RoomController(Hass, Mqtt):
                 else:
                     yield self.args['entity']
 
-        entities = [e for e in generator()]
-        return set(entities)
+        return set(list(generator()))
 
     def refresh_state_times(self, *args, **kwargs):
         """Resets the `self.states` attribute to a newly parsed version of the states.
@@ -176,7 +197,7 @@ class RoomController(Hass, Mqtt):
         """
         # re-parse the state strings into times for the current day
         self._room_config = RoomConfig.from_app_config(self.args)
-        self.log(f'{len(self._room_config.states)} states in the RoomConfig')
+        self.log(f'{len(self._room_config.states)} states in the RoomConfig', level='DEBUG')
 
         for state in self._room_config.states:
             if state.time is None and state.elevation is not None:
@@ -188,8 +209,11 @@ class RoomController(Hass, Mqtt):
 
             assert isinstance(state.time, datetime.time), f'Invalid time: {state.time}'
 
-        for state in self.states:
-            self.log(f'State: {state.time.strftime("%I:%M:%S %p")} {state.scene}')
+        if self.rich_logging:
+            table = self._room_config.rich_table(self.name)
+            console.print(table)
+            # for state in self.states:
+            #     self.log(f'State: {state.time.strftime("%I:%M:%S %p")} {state.scene}')
 
         self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
 
