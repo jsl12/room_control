@@ -9,7 +9,7 @@ from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from astral import SunDirection
-from console import console, setup_logging, deinit_logging
+from console import console, init_logging, deinit_logging
 from rich.table import Table
 
 
@@ -152,7 +152,7 @@ class RoomController(Hass, Mqtt):
 
     def initialize(self):
         if (level := self.args.get('rich', False)):
-            setup_logging(self, level)
+            init_logging(self, level)
             self.rich_logging = True
 
         self.log(f'Initializing {self}')
@@ -211,9 +211,7 @@ class RoomController(Hass, Mqtt):
 
         if self.rich_logging:
             table = self._room_config.rich_table(self.name)
-            console.print(table)
-            # for state in self.states:
-            #     self.log(f'State: {state.time.strftime("%I:%M:%S %p")} {state.scene}')
+            console.log(table, highlight=False)
 
         self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
 

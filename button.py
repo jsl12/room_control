@@ -1,17 +1,25 @@
 import json
+from dataclasses import dataclass
 
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
-from console import setup_logging
+from console import console, init_logging
 from room_control import RoomController
 
 
+@dataclass(init=False)
 class Button(Mqtt):
+    button: str
+    rich: bool = False
+
     async def initialize(self):
-        if self.args.get('rich', False):
-            setup_logging(self)
+        if level := self.args.get('rich', False):
+            self.rich = True
+            init_logging(self, level)
 
         self.app: RoomController = await self.get_app(self.args['app'])
-        self.setup_buttons(self.args['button'])
+
+        self.button = self.args['button']
+        self.setup_buttons(self.button)
 
     def setup_buttons(self, buttons):
         if isinstance(buttons, list):
@@ -22,9 +30,12 @@ class Button(Mqtt):
 
     def setup_button(self, name: str):
         topic = f'zigbee2mqtt/{name}'
-        self.mqtt_subscribe(topic, namespace='mqtt')
+        # self.mqtt_subscribe(topic, namespace='mqtt')
         self.listen_event(self.handle_button, 'MQTT_MESSAGE', topic=topic, namespace='mqtt', button=name)
-        self.log(f'"{topic}" controls app {self.app.name}')
+        if self.rich:
+            self.log(f'MQTT topic [blue]{topic}[/] controls app [green]{self.app.name}[/]')
+        else:
+            self.log(f'MQTT topic "{topic}" controls app {self.app.name}')
 
     def handle_button(self, event_name, data, kwargs):
         try:
@@ -39,8 +50,11 @@ class Button(Mqtt):
                 self.handle_action(action)
 
     def handle_action(self, action: str):
+        if isinstance(action, str):
+            action_str = f' [yellow]{action.upper()}[/] ' if self.rich else f' {action.upper()} '
+
         if action == 'single':
-            self.log(f' {action.upper()} '.center(50, '='))
+            self.log(action_str.center(80, '='))
             state = self.get_state(self.args['ref_entity'])
             kwargs = {'kwargs': {'cause': f'button single click: toggle while {state}'}}
             if state == 'on':
