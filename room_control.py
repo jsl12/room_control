@@ -1,4 +1,5 @@
 import datetime
+import logging
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -9,7 +10,7 @@ from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from astral import SunDirection
-from console import console, init_logging, deinit_logging
+from console import setup_handler
 from rich.table import Table
 
 
@@ -19,6 +20,9 @@ def str_to_timedelta(input_str: str) -> datetime.timedelta:
         return datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
     except Exception:
         return datetime.timedelta()
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -128,7 +132,6 @@ class RoomConfig:
             return state.off_duration
 
 
-@dataclass(init=False)
 class RoomController(Hass, Mqtt):
     """Class for linking room's lights with a motion sensor.
 
@@ -138,8 +141,6 @@ class RoomController(Hass, Mqtt):
         - `handle_off`
     - When the light comes on, check if it's attributes match what they should, given the time.
     """
-
-    rich_logging: bool = False
 
     @property
     def states(self) -> List[RoomState]:
@@ -151,21 +152,20 @@ class RoomController(Hass, Mqtt):
         self._room_config.states = new
 
     def initialize(self):
-        if (level := self.args.get('rich', False)):
-            init_logging(self, level)
-            self.rich_logging = True
-
-        self.log(f'Initializing {self}')
+        self.logger = logger.getChild(self.name)
+        if not self.logger.hasHandlers():
+            self.logger.setLevel(logging.INFO)
+            self.logger.addHandler(setup_handler(room=self.name))
+            # console.log(f'[yellow]Added RichHandler to {self.logger.name}[/]')
 
         self.app_entities = self.gather_app_entities()
         # self.log(f'entities: {self.app_entities}')
         self.refresh_state_times()
         self.run_daily(callback=self.refresh_state_times, start='00:00:00')
+        self.log(f'Initialized [bold green]{type(self).__name__}[/]')
 
     def terminate(self):
         self.log('[bold red]Terminating[/]', level='DEBUG')
-        deinit_logging(self)
-        self.log('Success', level='DEBUG')
 
     def gather_app_entities(self) -> List[str]:
         """Returns a list of all the entities involved in any of the states"""
@@ -209,9 +209,9 @@ class RoomController(Hass, Mqtt):
 
             assert isinstance(state.time, datetime.time), f'Invalid time: {state.time}'
 
-        if self.rich_logging:
-            table = self._room_config.rich_table(self.name)
-            console.log(table, highlight=False)
+        # if self.rich_logging:
+        #     table = self._room_config.rich_table(self.name)
+        #     console.log(table, highlight=False)
 
         self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
 
