@@ -4,26 +4,42 @@ import re
 from appdaemon.adapi import ADAPI
 from appdaemon.logging import AppNameFormatter
 from rich.console import Console
-from rich.highlighter import NullHighlighter, RegexHighlighter
+from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
 from rich.theme import Theme
 
+
+class RCHighlighter(RegexHighlighter):
+    highlights = [
+        r'(?P<light>(light|switch)\.\w+)',
+        r'(?P<time>\d+:\d+:\d+)',
+        r'(?P<z2m>zigbee2mqtt/)',
+        r'(?P<sensor>binary_sensor\.\w+)',
+        # r"'state': '(?P<on>on)|(?P<off>off)'"
+        r'(?P<true>True)|(?P<false>False)',
+    ]
+
+
 console = Console(
     width=150,
-    theme=Theme({
-        'log.time': 'none',
-        'logging.level.info': 'none',
-
-        'room': 'italic bright_cyan',
-        'component': 'dark_violet',
-
-        'entity_id': 'light_slate_blue',
-        'time': 'yellow',
-
-        'z2m': 'bright_black',
-        'topic': 'chartreuse2',
-    }),
+    theme=Theme(
+        {
+            'log.time': 'none',
+            'logging.level.info': 'none',
+            'room': 'italic bright_cyan',
+            'component': 'dark_violet',
+            'friendly_name': 'yellow',
+            'light': 'light_slate_blue',
+            'sensor': 'green',
+            'time': 'yellow',
+            'z2m': 'bright_black',
+            'topic': 'chartreuse2',
+            'true': 'green',
+            'false': 'red',
+        }
+    ),
     log_time_format='%Y-%m-%d %I:%M:%S %p',
+    highlighter=RCHighlighter(),
 )
 
 
@@ -47,11 +63,11 @@ class RoomControllerFormatter(logging.Formatter):
 
         datefmt = '%Y-%m-%d %I:%M:%S %p'
         style = '{'
-        validate=True
+        validate = True
 
         super().__init__(fmt, datefmt, style, validate)
         # console.print(f'Format: [bold yellow]{fmt}[/]')
-        
+
     def format(self, record: logging.LogRecord):
         parts = record.name.split('.')
         record.room = parts[1]
@@ -59,14 +75,6 @@ class RoomControllerFormatter(logging.Formatter):
             record.component = parts[2]
 
         return super().format(record)
-
-
-class RCHighlighter(RegexHighlighter):
-    highlights = [
-        r"(?P<entity_id>(light|switch)\.\w+)",
-        r'(?P<time>\d+:\d+:\d+)',
-        r'(?P<z2m>zigbee2mqtt/)'
-    ]
 
 
 def new_handler() -> RichHandler:
@@ -93,16 +101,14 @@ def setup_component_logging(self):
     self.logger = logger.getChild(typ)
     if len(self.logger.handlers) == 0:
         self.logger.setLevel(logging.INFO)
-        self.logger.addHandler(setup_handler(room=self.args["app"], component=typ))
+        self.logger.addHandler(setup_handler(room=self.args['app'], component=typ))
         self.logger.propagate = False
 
 
 def init_logging(self: ADAPI, level):
     for h in logging.getLogger('AppDaemon').handlers:
         og_formatter = h.formatter
-        h.setFormatter(
-            UnMarkupFormatter(fmt=og_formatter._fmt, datefmt=og_formatter.datefmt, style='{')
-        )
+        h.setFormatter(UnMarkupFormatter(fmt=og_formatter._fmt, datefmt=og_formatter.datefmt, style='{'))
 
     if not any(isinstance(h, RichHandler) for h in self.logger.handlers):
         self.logger.propagate = False

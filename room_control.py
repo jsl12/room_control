@@ -10,8 +10,9 @@ from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from astral import SunDirection
-from console import setup_handler
-from rich.table import Table
+from console import console, setup_handler
+from rich.console import Console, ConsoleOptions, RenderResult, Group
+from rich.table import Table, Column
 
 
 def str_to_timedelta(input_str: str) -> datetime.timedelta:
@@ -63,6 +64,12 @@ class RoomState:
     def from_json(cls, json_input):
         return cls(**json_input)
 
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        table = Table('Entity ID', 'State')
+        for name, state in self.scene.items():
+            table.add_row(name, str(state))
+        yield table
+
 
 @dataclass
 class RoomConfig:
@@ -89,6 +96,17 @@ class RoomConfig:
         with yaml_path.open('r') as f:
             cfg: Dict = yaml.load(f, Loader=yaml.SafeLoader)[app_name]
         return cls.from_app_config(cfg)
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        table = Table(
+            Column('Time', width=15),
+            Column('Scene'),
+            highlight=True, padding=1, collapse_padding=True,
+        )
+        for state in self.states:
+            lines = [f'{name:20}{state["state"]}   Brightness: {state["brightness"]:<4}  Temp: {state["color_temp"]}' for name, state in state.scene.items()]
+            table.add_row(state.time.strftime('%I:%M:%S %p'), '\n'.join(lines))
+        yield table
 
     def rich_table(self, app_name: str) -> Table:
         table = Table(title=app_name, expand=True, highlight=True, padding=1, collapse_padding=True)
@@ -154,7 +172,7 @@ class RoomController(Hass, Mqtt):
     def initialize(self):
         self.logger = logger.getChild(self.name)
         if not self.logger.hasHandlers():
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(self.args.get('rich', logging.INFO))
             self.logger.addHandler(setup_handler(room=self.name))
             # console.log(f'[yellow]Added RichHandler to {self.logger.name}[/]')
 
@@ -209,9 +227,9 @@ class RoomController(Hass, Mqtt):
 
             assert isinstance(state.time, datetime.time), f'Invalid time: {state.time}'
 
-        # if self.rich_logging:
-        #     table = self._room_config.rich_table(self.name)
-        #     console.log(table, highlight=False)
+        if self.logger.isEnabledFor(logging.DEBUG):
+            # table = self._room_config.rich_table(self.name)
+            console.print(self._room_config)
 
         self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
 
@@ -245,12 +263,10 @@ class RoomController(Hass, Mqtt):
 
     def current_scene(self, now: datetime.time = None) -> Dict[str, Dict[str, str | int]]:
         state = self.current_state(now)
-        # print(f'{type(state).__name__}')
-        # assert isinstance(state, RoomState), f'Invalid state: {type(state).__name__}'
-        assert type(state).__name__ == 'RoomState'  # needed for the reloading to work
-        # self.log(f'Current scene: {state}')
-        self.log('Current scene:')
-        self.log(state)
+        assert type(state).__name__ == 'RoomState'  # needed this way instead of isinstance(...) for the reloading to work
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.log('Current scene:')
+            console.print(state)
         return state.scene
 
     def app_entity_states(self) -> Dict[str, str]:
@@ -329,7 +345,9 @@ class RoomController(Hass, Mqtt):
                     scene[entity]['state'] = 'on'
 
             self.call_service('scene/apply', entities=scene, transition=0)
-            self.log(f'Applied scene: {scene}')
+            if self.logger.isEnabledFor(logging.INFO):
+                self.log('Applied scene:')
+                console.print(scene)
 
         elif scene is None:
             self.log('No scene, ignoring...')

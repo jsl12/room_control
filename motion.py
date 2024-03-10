@@ -30,6 +30,9 @@ class Motion(Hass):
         self.app: RoomController = self.get_app(self.args['app'])
         self.log(f'Connected to AD app [room]{self.app.name}[/]')
 
+        assert self.entity_exists(self.args['sensor'])
+        assert self.entity_exists(self.args['ref_entity'])
+
         base_kwargs = dict(
             entity_id=self.ref_entity.entity_id,
             immediate=True,  # avoids needing to sync the state
@@ -48,7 +51,9 @@ class Motion(Hass):
             oneshot=True,
             cause='motion on',
         )
-        self.log(f'Waiting for motion on {self.sensor.friendly_name}')
+        self.log(f'Waiting for motion on [friendly_name]{self.sensor.friendly_name}[/]')
+        if self.sensor_state:
+            self.log(f'{self.sensor.friendly_name} is already on', level='WARNING')
 
     def listen_motion_off(self, duration: timedelta):
         """Sets up the motion off callback to deactivate the room"""
@@ -61,18 +66,21 @@ class Motion(Hass):
             oneshot=True,
             cause='motion off',
         )
-        self.log(f'Waiting for motion to stop on {self.sensor.friendly_name} for {duration}')
+        self.log(f'Waiting for motion to stop on [friendly_name]{self.sensor.friendly_name}[/] for {duration}')
+
+        if not self.sensor_state:
+            self.log(f'{self.sensor.friendly_name} is currently off', level='WARNING')
 
     def callback_light_on(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns on"""
         if new is not None:
-            self.log(f'{entity} turned on')
+            self.log(f'Detected {entity} turning on', level='DEBUG')
             duration = self.app.off_duration()
             self.listen_motion_off(duration)
 
     def callback_light_off(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns off"""
-        self.log(f'{entity} turned off')
+        self.log(f'Detected {entity} turning off', level='DEBUG')
         self.listen_motion_on()
 
     def get_app_callbacks(self, name: str = None):
@@ -100,4 +108,4 @@ class Motion(Hass):
             if (m := re.match('new=(?P<new>.*?)\s', kwargs)) is not None:
                 new = m.group('new')
                 self.cancel_listen_state(handle)
-                self.log(f'cancelled callback for sensor {entity} turning {new}')
+                self.log(f'cancelled callback for sensor {entity} turning {new}', level='DEBUG')
