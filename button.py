@@ -31,7 +31,7 @@ class Button(Mqtt):
         topic = f'zigbee2mqtt/{name}'
         # self.mqtt_subscribe(topic, namespace='mqtt')
         self.listen_event(self.handle_button, 'MQTT_MESSAGE', topic=topic, namespace='mqtt', button=name)
-        self.log(f'MQTT topic [blue]{topic}[/] controls app [green]{self.app.name}[/]')
+        self.log(f'MQTT topic [topic]{topic}[/] controls app [room]{self.app.name}[/]')
 
     def handle_button(self, event_name, data, kwargs):
         try:
@@ -42,15 +42,12 @@ class Button(Mqtt):
         except KeyError:
             return
         else:
-            if action != '':
+            if isinstance(action, str) and action != '':
+                self.log(f'Action: [yellow]{action}[/]')
                 self.handle_action(action)
 
     def handle_action(self, action: str):
-        if isinstance(action, str):
-            action_str = f' [yellow]{action.upper()}[/] '
-
         if action == 'single':
-            self.log(action_str.center(80, '='))
             state = self.get_state(self.args['ref_entity'])
             kwargs = {'kwargs': {'cause': f'button single click: toggle while {state}'}}
             if state == 'on':

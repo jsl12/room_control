@@ -4,17 +4,24 @@ import re
 from appdaemon.adapi import ADAPI
 from appdaemon.logging import AppNameFormatter
 from rich.console import Console
-from rich.highlighter import NullHighlighter
+from rich.highlighter import NullHighlighter, RegexHighlighter
 from rich.logging import RichHandler
 from rich.theme import Theme
-
 
 console = Console(
     width=150,
     theme=Theme({
-        # 'appname': 'italic bright_cyan',
+        'log.time': 'none',
+        'logging.level.info': 'none',
+
         'room': 'italic bright_cyan',
-        'component': 'violet'
+        'component': 'dark_violet',
+
+        'entity_id': 'light_slate_blue',
+        'time': 'yellow',
+
+        'z2m': 'bright_black',
+        'topic': 'chartreuse2',
     }),
     log_time_format='%Y-%m-%d %I:%M:%S %p',
 )
@@ -54,10 +61,19 @@ class RoomControllerFormatter(logging.Formatter):
         return super().format(record)
 
 
+class RCHighlighter(RegexHighlighter):
+    highlights = [
+        r"(?P<entity_id>(light|switch)\.\w+)",
+        r'(?P<time>\d+:\d+:\d+)',
+        r'(?P<z2m>zigbee2mqtt/)'
+    ]
+
+
 def new_handler() -> RichHandler:
     return RichHandler(
         console=console,
-        highlighter=NullHighlighter(),
+        # highlighter=NullHighlighter(),
+        highlighter=RCHighlighter(),
         markup=True,
         show_path=False,
         omit_repeated_times=False,
