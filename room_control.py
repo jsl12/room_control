@@ -11,7 +11,7 @@ from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from astral import SunDirection
 from console import console, setup_handler
-from model import ApplyScene
+from model import ApplyKwargs
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.table import Column, Table
 
@@ -74,11 +74,11 @@ class RoomState:
             collapse_padding=True,
         )
         for name, state in self.scene.items():
-            table.add_row(name, ApplyScene(entites=self.scene).model_dump(exclude_none=True))
+            table.add_row(name, ApplyKwargs(entites=self.scene).model_dump(exclude_none=True))
         yield table
 
-    def scene_model(self) -> ApplyScene:
-        return ApplyScene(
+    def scene_model(self) -> ApplyKwargs:
+        return ApplyKwargs(
             entities=self.scene,
             transition=0
         ).model_dump(exclude_none=True)
@@ -119,7 +119,7 @@ class RoomConfig:
             collapse_padding=True,
         )
         for state in self.states:
-            scene_json = ApplyScene(entities=state.scene).model_dump(exclude_none=True)
+            scene_json = ApplyKwargs(entities=state.scene).model_dump(exclude_none=True)
             lines = [
                 f'{name:20}{state["state"]}   Brightness: {state["brightness"]:<4}  Temp: {state["color_temp"]}'
                 for name, state in scene_json['entities'].items()
@@ -363,7 +363,7 @@ class RoomController(Hass, Mqtt):
             self.log(f'Turned on scene: {scene}')
 
         elif isinstance(scene, dict):
-            kwargs = ApplyScene(entities=scene, transition=0).model_dump(exclude_none=True)
+            kwargs = ApplyKwargs(entities=scene, transition=0).model_dump(exclude_none=True)
             self.log('Validated scene JSON', level='DEBUG')
             self.call_service('scene/apply', **kwargs)
             if self.logger.isEnabledFor(logging.INFO):
