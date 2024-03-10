@@ -36,9 +36,11 @@ def create_handler() -> RichHandler:
 
 
 def init_logging(self: ADAPI, level):
-    stream_handler = logging.getLogger('AppDaemon').handlers[0]
-    og_formatter = stream_handler.formatter
-    stream_handler.setFormatter(UnMarkupFormatter(fmt=og_formatter._fmt, datefmt=og_formatter.datefmt, style='{'))
+    for h in logging.getLogger('AppDaemon').handlers:
+        og_formatter = h.formatter
+        h.setFormatter(
+            UnMarkupFormatter(fmt=og_formatter._fmt, datefmt=og_formatter.datefmt, style='{')
+        )
 
     if not any(isinstance(h, RichHandler) for h in self.logger.handlers):
         self.logger.propagate = False

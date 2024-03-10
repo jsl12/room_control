@@ -2,7 +2,8 @@ import json
 from dataclasses import dataclass
 
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
-from console import console, init_logging
+from console import init_logging
+
 from room_control import RoomController
 
 
@@ -32,10 +33,7 @@ class Button(Mqtt):
         topic = f'zigbee2mqtt/{name}'
         # self.mqtt_subscribe(topic, namespace='mqtt')
         self.listen_event(self.handle_button, 'MQTT_MESSAGE', topic=topic, namespace='mqtt', button=name)
-        if self.rich:
-            self.log(f'MQTT topic [blue]{topic}[/] controls app [green]{self.app.name}[/]')
-        else:
-            self.log(f'MQTT topic "{topic}" controls app {self.app.name}')
+        self.log(f'MQTT topic [blue]{topic}[/] controls app [green]{self.app.name}[/]')
 
     def handle_button(self, event_name, data, kwargs):
         try:
@@ -51,7 +49,7 @@ class Button(Mqtt):
 
     def handle_action(self, action: str):
         if isinstance(action, str):
-            action_str = f' [yellow]{action.upper()}[/] ' if self.rich else f' {action.upper()} '
+            action_str = f' [yellow]{action.upper()}[/] '
 
         if action == 'single':
             self.log(action_str.center(80, '='))
