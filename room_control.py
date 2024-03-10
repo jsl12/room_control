@@ -11,8 +11,9 @@ from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from astral import SunDirection
 from console import console, setup_handler
-from rich.console import Console, ConsoleOptions, RenderResult, Group
-from rich.table import Table, Column
+from model import ApplyScene
+from rich.console import Console, ConsoleOptions, RenderResult
+from rich.table import Column, Table
 
 
 def str_to_timedelta(input_str: str) -> datetime.timedelta:
@@ -65,10 +66,22 @@ class RoomState:
         return cls(**json_input)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        table = Table('Entity ID', 'State')
+        table = Table(
+            Column('Entity ID', width=15),
+            Column('State'),
+            highlight=True,
+            padding=1,
+            collapse_padding=True,
+        )
         for name, state in self.scene.items():
-            table.add_row(name, str(state))
+            table.add_row(name, ApplyScene(entites=self.scene).model_dump(exclude_none=True))
         yield table
+
+    def scene_model(self) -> ApplyScene:
+        return ApplyScene(
+            entities=self.scene,
+            transition=0
+        ).model_dump(exclude_none=True)
 
 
 @dataclass
@@ -101,10 +114,16 @@ class RoomConfig:
         table = Table(
             Column('Time', width=15),
             Column('Scene'),
-            highlight=True, padding=1, collapse_padding=True,
+            highlight=True,
+            padding=1,
+            collapse_padding=True,
         )
         for state in self.states:
-            lines = [f'{name:20}{state["state"]}   Brightness: {state["brightness"]:<4}  Temp: {state["color_temp"]}' for name, state in state.scene.items()]
+            scene_json = ApplyScene(entities=state.scene).model_dump(exclude_none=True)
+            lines = [
+                f'{name:20}{state["state"]}   Brightness: {state["brightness"]:<4}  Temp: {state["color_temp"]}'
+                for name, state in scene_json['entities'].items()
+            ]
             table.add_row(state.time.strftime('%I:%M:%S %p'), '\n'.join(lines))
         yield table
 
@@ -257,15 +276,20 @@ class RoomController(Hass, Mqtt):
             self.log(f'Getting state for {now}', level='DEBUG')
 
             state = self._room_config.current_state(now)
-            self.log(f'Current state: {state}', level='DEBUG')
+
+            if self.logger.isEnabledFor(logging.DEBUG):
+                self.log('Current state', level='DEBUG')
+                console.print(state)
 
             return state
 
     def current_scene(self, now: datetime.time = None) -> Dict[str, Dict[str, str | int]]:
         state = self.current_state(now)
-        assert type(state).__name__ == 'RoomState'  # needed this way instead of isinstance(...) for the reloading to work
+        # needed this way instead of isinstance(...) for the reloading to work
+        assert type(state).__name__ == 'RoomState'
+
         if self.logger.isEnabledFor(logging.DEBUG):
-            self.log('Current scene:')
+            self.log('Current scene:', level='DEBUG')
             console.print(state)
         return state.scene
 
@@ -339,12 +363,9 @@ class RoomController(Hass, Mqtt):
             self.log(f'Turned on scene: {scene}')
 
         elif isinstance(scene, dict):
-            # makes setting the state to 'on' optional in the yaml definition
-            for entity, settings in scene.items():
-                if 'state' not in settings:
-                    scene[entity]['state'] = 'on'
-
-            self.call_service('scene/apply', entities=scene, transition=0)
+            kwargs = ApplyScene(entities=scene, transition=0).model_dump(exclude_none=True)
+            self.log('Validated scene JSON', level='DEBUG')
+            self.call_service('scene/apply', **kwargs)
             if self.logger.isEnabledFor(logging.INFO):
                 self.log('Applied scene:')
                 console.print(scene)

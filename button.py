@@ -15,7 +15,7 @@ class Button(Mqtt):
     async def initialize(self):
         setup_component_logging(self)
         self.app: RoomController = await self.get_app(self.args['app'])
-        self.log(f'Connected to AD app [room]{self.app.name}[/]')
+        self.log(f'Connected to AD app [room]{self.app.name}[/]', level='DEBUG')
 
         self.button = self.args['button']
         self.setup_buttons(self.button)

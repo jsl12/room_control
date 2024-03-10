@@ -28,7 +28,7 @@ class Motion(Hass):
     def initialize(self):
         setup_component_logging(self)
         self.app: RoomController = self.get_app(self.args['app'])
-        self.log(f'Connected to AD app [room]{self.app.name}[/]')
+        self.log(f'Connected to AD app [room]{self.app.name}[/]', level='DEBUG')
 
         assert self.entity_exists(self.args['sensor'])
         assert self.entity_exists(self.args['ref_entity'])
@@ -37,8 +37,14 @@ class Motion(Hass):
             entity_id=self.ref_entity.entity_id,
             immediate=True,  # avoids needing to sync the state
         )
+
+        if self.sensor_state != self.ref_entity_state:
+            self.log(f'Sensor is {self.sensor_state} ' f'and light is {self.ref_entity_state}', level='WARNING')
+            if self.sensor_state:
+                self.app.activate(kwargs={'cause': f'Syncing state with {self.sensor.entity_id}'})
+
         # don't need to await these because they'll already get turned into a task by the utils.sync_wrapper decorator
-        self.listen_state(**base_kwargs, attribute='brightness', callback=self.callback_light_on)
+        self.listen_state(**base_kwargs, attribute='brightness', callback=self.callback_light_on,)
         self.listen_state(**base_kwargs, new='off', callback=self.callback_light_off)
 
     def listen_motion_on(self):
@@ -53,7 +59,7 @@ class Motion(Hass):
         )
         self.log(f'Waiting for motion on [friendly_name]{self.sensor.friendly_name}[/]')
         if self.sensor_state:
-            self.log(f'{self.sensor.friendly_name} is already on', level='WARNING')
+            self.log(f'[friendly_name]{self.sensor.friendly_name}[/] is already on', level='WARNING')
 
     def listen_motion_off(self, duration: timedelta):
         """Sets up the motion off callback to deactivate the room"""
@@ -69,7 +75,7 @@ class Motion(Hass):
         self.log(f'Waiting for motion to stop on [friendly_name]{self.sensor.friendly_name}[/] for {duration}')
 
         if not self.sensor_state:
-            self.log(f'{self.sensor.friendly_name} is currently off', level='WARNING')
+            self.log(f'[friendly_name]{self.sensor.friendly_name}[/] is currently off', level='WARNING')
 
     def callback_light_on(self, entity=None, attribute=None, old=None, new=None, kwargs=None):
         """Called when the light turns on"""
