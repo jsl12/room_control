@@ -1,10 +1,13 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from pathlib import Path
 from typing import Annotated, Dict, List, Self
 
 import yaml
 from astral import SunDirection
-from pydantic import BaseModel, BeforeValidator, ValidationError, conint, root_validator
+from pydantic import BaseModel, BeforeValidator, conint, root_validator
+from pydantic_core import PydanticCustomError
+from rich.console import Console, ConsoleOptions, RenderResult
+from rich.table import Column, Table
 
 
 def str_to_timedelta(input_str: str) -> timedelta:
@@ -13,7 +16,7 @@ def str_to_timedelta(input_str: str) -> timedelta:
         return timedelta(hours=hours, minutes=minutes, seconds=seconds)
     except Exception:
         return timedelta()
-    
+
 
 def str_to_direction(input_str: str) -> SunDirection:
     if input_str.lower() == 'setting':
@@ -21,7 +24,7 @@ def str_to_direction(input_str: str) -> SunDirection:
     elif input_str == 'rising':
         return SunDirection.RISING
     else:
-        raise ValidationError(f'Invalid sun direction: {input_str}')
+        raise PydanticCustomError('invalid_dir', 'Invalid sun direction: {dir}', dict(dir=input_str))
 
 
 OffDuration = Annotated[timedelta, BeforeValidator(str_to_timedelta)]
@@ -51,18 +54,18 @@ class ControllerStateConfig(BaseModel):
     def check_args(cls, values):
         time, elevation = values.get('time'), values.get('elevation')
         if time is None and elevation is None:
-            raise ValueError('Either time or elevation must be set.')
+            raise PydanticCustomError('bad_time_spec', 'Either time or elevation must be set.')
         elif time is not None and elevation is not None:
-            raise ValueError('Only one of time or elevation can be set.')
-        elif elevation is not None:
-            assert 'direction' in values
+            raise PydanticCustomError('bad_time_spec', 'Only one of time or elevation can be set.')
+        elif elevation is not None and 'direction' not in values:
+            raise PydanticCustomError('no_sun_dir', 'Needs sun direction with elevation')
         return values
 
-    def to_apply_kwargs(self, transition: int = 0):
-        return ApplyKwargs(entities=self.scene, transition=transition).model_dump(exclude_none=True)
+    def to_apply_kwargs(self, **kwargs):
+        return ApplyKwargs(entities=self.scene, **kwargs).model_dump(exclude_none=True)
 
 
-class RoomConfig(BaseModel):
+class RoomControllerConfig(BaseModel):
     states: List[ControllerStateConfig]
     off_duration: OffDuration = None
 
@@ -75,3 +78,59 @@ class RoomConfig(BaseModel):
                     break
         print(app_cfg)
         return cls(**app_cfg)
+    
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        table = Table(
+            Column('Time', width=15),
+            Column('Scene'),
+            highlight=True,
+            padding=1,
+            collapse_padding=True,
+        )
+        for state in self.states:
+            scene_json = state.to_apply_kwargs()
+            lines = [
+                f'{name:20}{state["state"]}   Brightness: {state["brightness"]:<4}  Temp: {state["color_temp"]}'
+                for name, state in scene_json['entities'].items()
+            ]
+            table.add_row(state.time.strftime('%I:%M:%S %p'), '\n'.join(lines))
+        yield table
+
+    def sort_states(self):
+        """Should only be called after all the times have been resolved"""
+        assert all(
+            isinstance(state.time, time) for state in self.states
+        ), 'Times have not all been resolved yet'
+        self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
+
+    def current_state(self, now: time) -> ControllerStateConfig:
+        # time_fmt = '%I:%M:%S %p'
+        # print(now.strftime(time_fmt))
+
+        self.sort_states()
+        for state in self.states:
+            if state.time <= now:
+                return state
+        else:
+            # self.log(f'Defaulting to first state')
+            return self.states[0]
+
+    def current_scene(self, now: time) -> Dict:
+        state = self.current_state(now)
+        return state.scene
+
+    def current_off_duration(self, now: time) -> timedelta:
+        state = self.current_state(now)
+        if state.off_duration is None:
+            if self.off_duration is None:
+                raise ValueError('Need an off duration')
+            else:
+                return self.off_duration
+        else:
+            return state.off_duration
+
+
+class ButtonConfig(BaseModel):
+    app: str
+    button: str | List[str]
+    ref_entity: str

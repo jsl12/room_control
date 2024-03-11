@@ -1,172 +1,15 @@
 import datetime
 import logging
 from copy import deepcopy
-from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Dict, List
 
-import yaml
 from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
-from astral import SunDirection
 from console import console, setup_handler
-from model import ApplyKwargs
-from rich.console import Console, ConsoleOptions, RenderResult
-from rich.table import Column, Table
-
-
-def str_to_timedelta(input_str: str) -> datetime.timedelta:
-    try:
-        hours, minutes, seconds = map(int, input_str.split(':'))
-        return datetime.timedelta(hours=hours, minutes=minutes, seconds=seconds)
-    except Exception:
-        return datetime.timedelta()
-
+from model import ControllerStateConfig, RoomControllerConfig
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class RoomState:
-    scene: Dict[str, Dict[str, str | int]]
-    off_duration: datetime.timedelta = None
-    time: datetime.time = None
-    time_fmt: List[str] = field(default_factory=lambda: ['%H:%M:%S', '%I:%M:%S %p'], repr=False)
-    elevation: int | float = None
-    direction: SunDirection = None
-
-    def __post_init__(self):
-        if isinstance(self.time, str):
-            for fmt in self.time_fmt:
-                try:
-                    self.time = datetime.datetime.strptime(self.time, fmt).time()
-                except Exception:
-                    continue
-                else:
-                    break
-
-        if self.elevation is not None:
-            assert self.direction is not None, 'Elevation setting requires a direction'
-            if self.direction.lower() == 'setting':
-                self.direction = SunDirection.SETTING
-            elif self.direction.lower() == 'rising':
-                self.direction = SunDirection.RISING
-            else:
-                raise ValueError(f'Invalid sun direction: {self.direction}')
-
-            if isinstance(self.elevation, str):
-                self.elevation = float(self.elevation)
-
-        if isinstance(self.off_duration, str):
-            self.off_duration = str_to_timedelta(self.off_duration)
-
-    @classmethod
-    def from_json(cls, json_input):
-        return cls(**json_input)
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        table = Table(
-            Column('Entity ID', width=15),
-            Column('State'),
-            highlight=True,
-            padding=1,
-            collapse_padding=True,
-        )
-        for name, state in self.scene.items():
-            table.add_row(name, ApplyKwargs(entites=self.scene).model_dump(exclude_none=True))
-        yield table
-
-    def scene_model(self) -> ApplyKwargs:
-        return ApplyKwargs(
-            entities=self.scene,
-            transition=0
-        ).model_dump(exclude_none=True)
-
-
-@dataclass
-class RoomConfig:
-    states: List[RoomState]
-    off_duration: datetime.timedelta = None
-
-    def __post_init__(self):
-        if isinstance(self.off_duration, str):
-            self.off_duration = str_to_timedelta(self.off_duration)
-
-    @classmethod
-    def from_app_config(cls, app_cfg: Dict[str, Dict]):
-        if 'off_duration' in app_cfg:
-            kwargs = {'off_duration': app_cfg['off_duration']}
-        else:
-            kwargs = {}
-
-        self = cls(states=[RoomState.from_json(s) for s in app_cfg['states']], **kwargs)
-
-        return self
-
-    @classmethod
-    def from_yaml(cls, yaml_path: Path, app_name: str):
-        with yaml_path.open('r') as f:
-            cfg: Dict = yaml.load(f, Loader=yaml.SafeLoader)[app_name]
-        return cls.from_app_config(cfg)
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        table = Table(
-            Column('Time', width=15),
-            Column('Scene'),
-            highlight=True,
-            padding=1,
-            collapse_padding=True,
-        )
-        for state in self.states:
-            scene_json = ApplyKwargs(entities=state.scene).model_dump(exclude_none=True)
-            lines = [
-                f'{name:20}{state["state"]}   Brightness: {state["brightness"]:<4}  Temp: {state["color_temp"]}'
-                for name, state in scene_json['entities'].items()
-            ]
-            table.add_row(state.time.strftime('%I:%M:%S %p'), '\n'.join(lines))
-        yield table
-
-    def rich_table(self, app_name: str) -> Table:
-        table = Table(title=app_name, expand=True, highlight=True, padding=1, collapse_padding=True)
-        table.add_column('Time')
-        table.add_column('Scene')
-        for state in self.states:
-            table.add_row(state.time.strftime('%I:%M:%S %p'), str(state.scene))
-        return table
-
-    def sort_states(self):
-        """Should only be called after all the times have been resolved"""
-        assert all(
-            isinstance(state.time, datetime.time) for state in self.states
-        ), 'Times have not all been resolved yet'
-        self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
-
-    def current_state(self, now: datetime.time) -> RoomState:
-        # time_fmt = '%I:%M:%S %p'
-        # print(now.strftime(time_fmt))
-
-        self.sort_states()
-        for state in self.states:
-            if state.time <= now:
-                return state
-        else:
-            # self.log(f'Defaulting to first state')
-            return self.states[0]
-
-    def current_scene(self, now: datetime.time) -> Dict:
-        state = self.current_state(now)
-        return state.scene
-
-    def current_off_duration(self, now: datetime.time) -> datetime.timedelta:
-        state = self.current_state(now)
-        if state.off_duration is None:
-            if self.off_duration is None:
-                raise ValueError('Need an off duration')
-            else:
-                return self.off_duration
-        else:
-            return state.off_duration
 
 
 class RoomController(Hass, Mqtt):
@@ -180,12 +23,12 @@ class RoomController(Hass, Mqtt):
     """
 
     @property
-    def states(self) -> List[RoomState]:
+    def states(self) -> List[ControllerStateConfig]:
         return self._room_config.states
 
     @states.setter
-    def states(self, new: List[RoomState]):
-        assert all(isinstance(s, RoomState) for s in new), f'Invalid: {new}'
+    def states(self, new: List[ControllerStateConfig]):
+        assert all(isinstance(s, ControllerStateConfig) for s in new), f'Invalid: {new}'
         self._room_config.states = new
 
     def initialize(self):
@@ -233,8 +76,8 @@ class RoomController(Hass, Mqtt):
         Parsed states have an absolute time for the current day.
         """
         # re-parse the state strings into times for the current day
-        self._room_config = RoomConfig.from_app_config(self.args)
-        self.log(f'{len(self._room_config.states)} states in the RoomConfig', level='DEBUG')
+        self._room_config = RoomControllerConfig(**self.args)
+        self.log(f'{len(self._room_config.states)} states in the app configuration', level='DEBUG')
 
         for state in self._room_config.states:
             if state.time is None and state.elevation is not None:
@@ -264,34 +107,20 @@ class RoomController(Hass, Mqtt):
             except Exception as e:
                 self.log(f'Failed with {type(e)}: {e}')
 
-    def current_state(self, now: datetime.time = None) -> RoomState:
+    def current_state(self, now: datetime.time = None) -> ControllerStateConfig:
         if self.sleep_bool():
             self.log('sleep: active')
             if state := self.args.get('sleep_state'):
-                return RoomState.from_json(state)
+                return ControllerStateConfig(**state)
             else:
-                return RoomState(scene={})
+                return ControllerStateConfig(scene={})
         else:
-            now = now or self.get_now().time()
-            self.log(f'Getting state for {now}', level='DEBUG')
+            now = now or self.get_now().time().replace(microsecond=0)
+            self.log(f'Getting state for {now.strftime("%I:%M:%S %p")}', level='DEBUG')
 
             state = self._room_config.current_state(now)
-
-            if self.logger.isEnabledFor(logging.DEBUG):
-                self.log('Current state', level='DEBUG')
-                console.print(state)
-
+            self.log(f'Current state: {state.time}', level='DEBUG')
             return state
-
-    def current_scene(self, now: datetime.time = None) -> Dict[str, Dict[str, str | int]]:
-        state = self.current_state(now)
-        # needed this way instead of isinstance(...) for the reloading to work
-        assert type(state).__name__ == 'RoomState'
-
-        if self.logger.isEnabledFor(logging.DEBUG):
-            self.log('Current scene:', level='DEBUG')
-            console.print(state)
-        return state.scene
 
     def app_entity_states(self) -> Dict[str, str]:
         states = {entity: self.get_state(entity) for entity in self.app_entities}
@@ -356,26 +185,24 @@ class RoomController(Hass, Mqtt):
             cause = 'unknown'
 
         self.log(f'Activating: {cause}')
-        scene = self.current_scene()
+        scene_kwargs = self.current_state().to_apply_kwargs(transition=0)
 
-        if isinstance(scene, str):
-            self.turn_on(scene)
-            self.log(f'Turned on scene: {scene}')
+        if isinstance(scene_kwargs, str):
+            self.turn_on(scene_kwargs)
+            self.log(f'Turned on scene: {scene_kwargs}')
 
-        elif isinstance(scene, dict):
-            kwargs = ApplyKwargs(entities=scene, transition=0).model_dump(exclude_none=True)
-            self.log('Validated scene JSON', level='DEBUG')
-            self.call_service('scene/apply', **kwargs)
+        elif isinstance(scene_kwargs, dict):
+            self.call_service('scene/apply', **scene_kwargs)
             if self.logger.isEnabledFor(logging.INFO):
                 self.log('Applied scene:')
-                console.print(scene)
+                console.print(scene_kwargs['entities'])
 
-        elif scene is None:
+        elif scene_kwargs is None:
             self.log('No scene, ignoring...')
             # Need to act as if the light had just turned off to reset the motion (and maybe other things?)
             # self.callback_light_off()
         else:
-            self.log(f'ERROR: unknown scene: {scene}')
+            self.log(f'ERROR: unknown scene: {scene_kwargs}')
 
     def activate_all_off(self, *args, **kwargs):
         """Activate if all of the entities are off. Args and kwargs are passed directly to self.activate()"""

@@ -1,23 +1,27 @@
 import json
 from dataclasses import dataclass
+from typing import List
 
 from appdaemon.plugins.mqtt.mqttapi import Mqtt
 from console import setup_component_logging
+from model import ButtonConfig
 
 from room_control import RoomController
 
 
 @dataclass(init=False)
 class Button(Mqtt):
-    button: str
+    button: str | List[str]
     rich: bool = False
+    config: ButtonConfig
 
     async def initialize(self):
+        self.config = ButtonConfig(**self.args)
         setup_component_logging(self)
         self.app: RoomController = await self.get_app(self.args['app'])
         self.log(f'Connected to AD app [room]{self.app.name}[/]', level='DEBUG')
 
-        self.button = self.args['button']
+        self.button = self.config.button
         self.setup_buttons(self.button)
 
     def setup_buttons(self, buttons):
