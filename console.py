@@ -21,7 +21,7 @@ class RCHighlighter(RegexHighlighter):
 
 
 console = Console(
-    width=150,
+    width=100,
     theme=Theme(
         {
             'log.time': 'none',
@@ -104,24 +104,3 @@ def setup_component_logging(self):
         self.logger.addHandler(setup_handler(room=self.args['app'], component=typ))
         self.logger.propagate = False
 
-
-def init_logging(self: ADAPI, level):
-    for h in logging.getLogger('AppDaemon').handlers:
-        og_formatter = h.formatter
-        h.setFormatter(UnMarkupFormatter(fmt=og_formatter._fmt, datefmt=og_formatter.datefmt, style='{'))
-
-    if not any(isinstance(h, RichHandler) for h in self.logger.handlers):
-        self.logger.propagate = False
-        self.logger.setLevel(level)
-        self.logger.addHandler(setup_handler())
-        self.log(f'Added rich handler for [bold green]{self.logger.name}[/]')
-        # self.log(f'Formatter for RichHandler: {handler.formatter}')
-
-
-def deinit_logging(self: ADAPI):
-    self.logger.setLevel(logging.NOTSET)
-    self.logger.propagate = True
-    for h in self.logger.handlers:
-        if isinstance(h, RichHandler):
-            self.logger.removeHandler(h)
-            self.log('Removed RichHandler')
