@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta
 from pathlib import Path
-from typing import Annotated, Dict, List, Self
+from typing import Annotated, Dict, List, Optional, Self
 
 import yaml
 from astral import SunDirection
-from pydantic import BaseModel, BeforeValidator, conint, root_validator
+from pydantic import BaseModel, BeforeValidator, Field, conint, root_validator
 from pydantic_core import PydanticCustomError
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.table import Column, Table
@@ -19,11 +19,9 @@ def str_to_timedelta(input_str: str) -> timedelta:
 
 
 def str_to_direction(input_str: str) -> SunDirection:
-    if input_str.lower() == 'setting':
-        return SunDirection.SETTING
-    elif input_str == 'rising':
-        return SunDirection.RISING
-    else:
+    try:
+        return getattr(SunDirection, input_str.upper())
+    except AttributeError:
         raise PydanticCustomError('invalid_dir', 'Invalid sun direction: {dir}', dict(dir=input_str))
 
 
@@ -32,30 +30,28 @@ OffDuration = Annotated[timedelta, BeforeValidator(str_to_timedelta)]
 
 class State(BaseModel):
     state: bool = True
-    brightness: conint(ge=1, le=255) = None
-    color_temp: conint(ge=200, le=650) = None
+    brightness: Optional[int] = Field(default=None, ge=1, le=255)
+    color_temp: Optional[int] = Field(default=None, ge=200, le=650)
+    rgb_color: Optional[list[int]] = Field(default=None, min_length=3, max_length=3)
 
 
 class ApplyKwargs(BaseModel):
     """Arguments to call with the 'scene/apply' service"""
-
     entities: Dict[str, State]
-    transition: int = None
+    transition: Optional[int] = None
 
 
 class ControllerStateConfig(BaseModel):
-    time: str | datetime = None
-    elevation: float = None
-    direction: Annotated[SunDirection, BeforeValidator(str_to_direction)] = None
-    off_duration: OffDuration = None
-    scene: Dict[str, State]
+    time: Optional[str | datetime] = None
+    elevation: Optional[float] = None
+    direction: Optional[Annotated[SunDirection, BeforeValidator(str_to_direction)]] = None
+    off_duration: Optional[OffDuration] = None
+    scene: dict[str, State]
 
     @root_validator(pre=True)
     def check_args(cls, values):
         time, elevation = values.get('time'), values.get('elevation')
-        if time is None and elevation is None:
-            raise PydanticCustomError('bad_time_spec', 'Either time or elevation must be set.')
-        elif time is not None and elevation is not None:
+        if time is not None and elevation is not None:
             raise PydanticCustomError('bad_time_spec', 'Only one of time or elevation can be set.')
         elif elevation is not None and 'direction' not in values:
             raise PydanticCustomError('no_sun_dir', 'Needs sun direction with elevation')
@@ -66,18 +62,17 @@ class ControllerStateConfig(BaseModel):
 
 
 class RoomControllerConfig(BaseModel):
-    states: List[ControllerStateConfig]
-    off_duration: OffDuration = None
+    states: List[ControllerStateConfig] = Field(default_factory=list)
+    off_duration: Optional[OffDuration] = None
+    sleep_state: Optional[ControllerStateConfig] = None
 
     @classmethod
-    def from_yaml(cls: Self, yaml_path: Path):
+    def from_yaml(cls: Self, yaml_path: Path) -> Self:
         yaml_path = Path(yaml_path)
         with yaml_path.open('r') as f:
             for appname, app_cfg in yaml.load(f, Loader=yaml.SafeLoader).items():
                 if app_cfg['class'] == 'RoomController':
-                    break
-        print(app_cfg)
-        return cls(**app_cfg)
+                    return cls.model_validate(app_cfg)
     
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         table = Table(
@@ -104,15 +99,11 @@ class RoomControllerConfig(BaseModel):
         self.states = sorted(self.states, key=lambda s: s.time, reverse=True)
 
     def current_state(self, now: time) -> ControllerStateConfig:
-        # time_fmt = '%I:%M:%S %p'
-        # print(now.strftime(time_fmt))
-
         self.sort_states()
         for state in self.states:
             if state.time <= now:
                 return state
         else:
-            # self.log(f'Defaulting to first state')
             return self.states[0]
 
     def current_scene(self, now: time) -> Dict:
