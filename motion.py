@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 from appdaemon.entity import Entity
 from appdaemon.plugins.hass.hassapi import Hass
-from console import console, setup_component_logging
+from console import setup_component_logging
 from pydantic import BaseModel, TypeAdapter
 
 from room_control import RoomController

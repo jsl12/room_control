@@ -4,7 +4,7 @@ from typing import Annotated, Dict, List, Optional, Self
 
 import yaml
 from astral import SunDirection
-from pydantic import BaseModel, BeforeValidator, Field, conint, root_validator
+from pydantic import BaseModel, BeforeValidator, Field, root_validator
 from pydantic_core import PydanticCustomError
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.table import Column, Table
@@ -22,7 +22,9 @@ def str_to_direction(input_str: str) -> SunDirection:
     try:
         return getattr(SunDirection, input_str.upper())
     except AttributeError:
-        raise PydanticCustomError('invalid_dir', 'Invalid sun direction: {dir}', dict(dir=input_str))
+        raise PydanticCustomError(
+            'invalid_dir', 'Invalid sun direction: {dir}', dict(dir=input_str)
+        )
 
 
 OffDuration = Annotated[timedelta, BeforeValidator(str_to_timedelta)]
@@ -37,6 +39,7 @@ class State(BaseModel):
 
 class ApplyKwargs(BaseModel):
     """Arguments to call with the 'scene/apply' service"""
+
     entities: Dict[str, State]
     transition: Optional[int] = None
 
@@ -73,7 +76,7 @@ class RoomControllerConfig(BaseModel):
             for appname, app_cfg in yaml.load(f, Loader=yaml.SafeLoader).items():
                 if app_cfg['class'] == 'RoomController':
                     return cls.model_validate(app_cfg)
-    
+
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         table = Table(
             Column('Time', width=15),
